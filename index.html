@@ -85,6 +85,7 @@
     }
 
     .status-card {
+      position: relative;
       display: grid;
       grid-template-rows: auto minmax(34px, 1fr) auto;
       width: 300px;
@@ -200,6 +201,7 @@
     }
 
     .status-label {
+      padding-right: 108px;
       margin-bottom: 7px;
       color: #94a3b8;
       font-size: 12px;
@@ -236,28 +238,40 @@
       font-size: 11px;
       font-weight: 800;
       line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
-    .helper-row {
+    .helper-control {
+      position: absolute;
+      top: 10px;
+      right: 12px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-top: 6px;
+      gap: 7px;
+      max-width: 112px;
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 900;
     }
 
-    .helper-row .status-meta {
-      min-width: 0;
-      flex: 1;
-      border-top: 0;
-      padding-top: 0;
+    .helper-control input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--green);
+      cursor: default;
+      pointer-events: none;
     }
 
     .helper-button {
       flex: 0 0 auto;
       height: 22px;
       min-height: 22px;
-      padding: 0 9px;
+      max-width: 72px;
+      overflow: hidden;
+      padding: 0 8px;
       border-color: rgba(203, 213, 225, 0.28);
       border-radius: 5px;
       color: #f8fafc;
@@ -265,6 +279,8 @@
       font-size: 11px;
       font-weight: 800;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .helper-button:hover {
@@ -1252,14 +1268,15 @@
 
         <section class="status-card" aria-live="polite">
           <div class="status-label">Status</div>
+          <div class="helper-control">
+            <input id="helperOnlineCheck" type="checkbox" aria-label="Helper online state">
+            <button id="helperLaunchButton" class="helper-button" type="button" title="Copy helper launch command">Helper</button>
+          </div>
           <div class="status-line">
             <span id="statusDot" class="dot"></span>
             <span id="statusText">Waiting for image input</span>
           </div>
-          <div class="helper-row">
-            <div id="glossaryStatus" class="status-meta">Parser: checking · Glossary: none</div>
-            <button id="helperLaunchButton" class="helper-button" type="button" title="Copy helper launch command">Helper</button>
-          </div>
+          <div id="glossaryStatus" class="status-meta">Glossary: none</div>
         </section>
       </div>
     </header>
@@ -1472,6 +1489,7 @@
       const statusDot = document.getElementById("statusDot");
       const statusText = document.getElementById("statusText");
       const glossaryStatus = document.getElementById("glossaryStatus");
+      const helperOnlineCheck = document.getElementById("helperOnlineCheck");
       const helperLaunchButton = document.getElementById("helperLaunchButton");
       const progressBar = document.getElementById("progressBar");
       const docStatusPill = document.getElementById("docStatusPill");
@@ -1738,7 +1756,8 @@
       }
 
       function updateStatusMeta() {
-        glossaryStatus.textContent = "Parser: " + (localParserOnline ? "online" : "offline") + " · Glossary: " + (qualityTeamGlossaryFileName || "none");
+        if (helperOnlineCheck) helperOnlineCheck.checked = localParserOnline;
+        glossaryStatus.textContent = "Glossary: " + (qualityTeamGlossaryFileName || "none");
         glossaryStatus.title = qualityTeamGlossaryFileName
           ? "Loaded glossary file: " + qualityTeamGlossaryFileName
           : "No quality_team_glossary_YYMMDD.md or quality_team_glossary.md file loaded.";

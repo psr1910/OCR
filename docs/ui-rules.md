@@ -6,6 +6,7 @@
 - Runtime downloads for Codex Vision packages belong under `C:\Users\user\Documents\My Works\OCR\downloads`.
 - Do not keep, recreate, or use `C:\Users\user\Documents\OCR` as a secondary workspace.
 - Use `tools/remove-legacy-ocr-workspace.ps1` to delete the legacy path safely after closing any process that locks it. The script compares file hashes before removal and refuses to delete if the workspaces differ.
+- Git commit, push, and deployment actions are performed only when the user explicitly asks for Git reflection or deployment.
 
 ## Layout Balance
 
@@ -97,8 +98,9 @@
 - The local parser service should run in a visible terminal window. Users must keep that window open while using save or PPT automation features.
 - Save and PPT automation testing must use `http://127.0.0.1:8765/`, not `file:///.../index.html`.
 - If the browser reports connection refused, the local parser service is not running or its terminal window was closed; relaunch with `start_ocr_app.cmd`.
-- The UI must monitor the local parser service health and show `Parser: online` or `Parser: offline` in the status metadata line.
-- The status card should include a compact `Helper` button. Because browsers cannot directly launch local scripts, this button copies the helper launch command and reruns the parser health check.
+- The UI must monitor the local parser service health and show helper availability with a compact checkbox treatment matching the Codex export check style.
+- The Status card should place the helper checkbox and compact `Helper` button in the top-right corner of the card, separate from the glossary metadata line so long glossary filenames cannot overlap it.
+- Because browsers cannot directly launch local scripts, the `Helper` button copies the helper launch command and reruns the parser health check.
 - PPT automation requires the local parser service; if it is unavailable, the UI must show a clear status message and keep paste/drop/select image intake available.
 - Header and Slide insertion controls are not shown in the Markdown output toolbar. Header metadata is repaired from the quality inspector, and slides are created only by OCR capture.
 - Table insertion belongs in the Markdown output toolbar for manual supplemental data. It inserts at the editor cursor and does not create, select, rename, or delete slide blocks.

@@ -127,7 +127,8 @@
 - The Codex card keeps a fixed checked checkbox as a visual signal and one action button labeled `Codex 보정 보내기`.
 - The single Codex action saves one HTML Vision Package containing Markdown, manifest, glossary context, and captured images.
 - The Codex card should show a small `Save path` button before the send button, not a long inline path label.
-- The `Save path` button is always enabled and exists to copy `C:\Users\user\Documents\My Works\OCR\downloads` to the clipboard. If clipboard write is denied, show the path in the status message.
+- The `Save path` button stays disabled until a Codex Vision Package is successfully saved through the local parser service. After success, it asks the local parser service to open `C:\Users\user\Documents\My Works\OCR\downloads` directly in Explorer.
+- Clearing Markdown resets `Save path` to disabled so users do not mistake the path button for a new successful save.
 - Codex Vision Package save is considered successful only when the local parser service at `http://127.0.0.1:8765` writes the HTML file directly to `C:\Users\user\Documents\My Works\OCR\downloads`.
 - Do not report browser download fallback or File System Access picker fallback as a successful Codex package save to the managed downloads folder.
 - If the local parser service is unavailable, show a clear error telling the user to launch the system with `start_ocr_app.cmd`; do not pretend the HTML package was saved.
@@ -135,6 +136,7 @@
 - OCR completion prepares the accumulated Markdown for that HTML Codex handoff.
 - Do not auto-copy after async OCR; browser clipboard permission can reject non-click writes.
 - The HTML package prompt should use the full accumulated Markdown refinement prompt first, and fall back to the latest raw OCR prompt only when no Markdown exists.
+- The HTML package prompt must keep explicit RAG refinement rules even when images are available: preserve source evidence, avoid guessing, convert visible tables/flows, enforce glossary terms, verify image manifest, and output Markdown only.
 - Plain text fallback and clipboard copy are not the primary flow. The saved HTML Vision Package is the authoritative handoff because some receiving chat surfaces preserve only one pasted image.
 - The prompt should recommend a near-0.0 temperature when that setting is available.
 - Codex cleanup prompts must preserve the original language mix. Do not force Korean, English, Chinese characters, abbreviations, product names, model names, test names, proper nouns, or technical terms into one language.

@@ -56,6 +56,16 @@ class LocalParserHandler(BaseHTTPRequestHandler):
             self._send_json(result)
             return
 
+        if path == "/api/downloads/open":
+            try:
+                result = open_downloads_directory()
+            except RuntimeError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                return
+
+            self._send_json(result)
+            return
+
         if path != "/api/ppt/convert":
             self._send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
             return
@@ -247,6 +257,21 @@ def save_codex_html_package(payload: dict) -> dict[str, str | bool]:
         "saved": True,
         "path": str(output_path),
         "filename": filename,
+    }
+
+
+def open_downloads_directory() -> dict[str, str | bool]:
+    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    downloads_root = DOWNLOADS_DIR.resolve()
+
+    try:
+        subprocess.Popen(["explorer", str(downloads_root)])
+    except OSError as error:
+        raise RuntimeError(f"Could not open downloads directory: {error}") from error
+
+    return {
+        "opened": True,
+        "path": str(downloads_root),
     }
 
 

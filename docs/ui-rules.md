@@ -99,8 +99,13 @@
 - Save and PPT automation testing must use `http://127.0.0.1:8765/`, not `file:///.../index.html`.
 - If the browser reports connection refused, the local parser service is not running or its terminal window was closed; relaunch with `start_ocr_app.cmd`.
 - The UI must monitor the local parser service health and show helper availability with a compact checkbox treatment matching the Codex export check style.
+- The helper checkbox is a read-only service state indicator: checked only when `http://127.0.0.1:8765/health` is reachable, unchecked when it is offline.
 - The Status card should place the helper checkbox and compact `Helper` button in the top-right corner of the card, separate from the glossary metadata line so long glossary filenames cannot overlap it.
-- Because browsers cannot directly launch local scripts, the `Helper` button copies the helper launch command and reruns the parser health check.
+- The `Helper` button must not copy commands. It checks helper health first; when offline, it calls the registered local protocol `ocr-parser://launch` and then polls health again.
+- GitHub Pages can launch the helper only after the local protocol has been registered once with `tools/register-ocr-protocol.ps1`.
+- Helper guidance belongs behind a compact `?` guide button beside `Helper`, not inside the main status text and not as an automatic popup on every Helper launch.
+- The helper guide popup must be written in Korean for end users and explain the exact order: download `OCR_Helper_Setup.zip`, unzip it, run `install_helper_protocol.cmd` once, return to the page, press `Helper`, keep the local parser window open, and read the checkbox state.
+- The helper guide popup should include a direct download link for `OCR_Helper_Setup.zip`.
 - PPT automation requires the local parser service; if it is unavailable, the UI must show a clear status message and keep paste/drop/select image intake available.
 - Header and Slide insertion controls are not shown in the Markdown output toolbar. Header metadata is repaired from the quality inspector, and slides are created only by OCR capture.
 - Table insertion belongs in the Markdown output toolbar for manual supplemental data. It inserts at the editor cursor and does not create, select, rename, or delete slide blocks.
@@ -112,6 +117,7 @@
 - Panel header action labels must keep enough horizontal breathing room from their buttons; do not place label text tightly against the action button.
 - Button transitions are global: border, text color, background, shadow, transform, and opacity use the same short easing.
 - Codex card buttons must use the same restrained hover behavior as the rest of the app: no strong blue hover state, only subtle slate lift/background.
+- Helper card buttons, including the compact `?` guide button, use the same restrained hover group as Codex card buttons; do not create a separate helper-only hover treatment.
 - Button purpose styles are shared: primary for final/save actions, secondary for neutral utility actions, danger for destructive removal actions, compact for small repeated list actions.
 - In rule repair rows, Apply should keep a consistent 58px width and 28px height across Header, Metadata, and Source rules.
 - Markdown quality inspector repair buttons should be lower than main toolbar buttons, using a compact 28px height.

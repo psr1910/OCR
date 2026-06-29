@@ -158,6 +158,7 @@ class LocalParserHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
 
 
 def convert_ppt_to_slide_payloads(filename: str, content: bytes) -> list[dict[str, str | int]]:

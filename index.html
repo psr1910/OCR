@@ -177,7 +177,10 @@
       font-size: 11px;
     }
 
-    .codex-card button:hover {
+    .codex-card button:hover,
+    .helper-button:hover,
+    .helper-guide-button:hover,
+    .helper-guide-close:hover {
       border-color: rgba(148, 163, 184, 0.8);
       color: #f8fafc;
       background: rgba(148, 163, 184, 0.22);
@@ -201,7 +204,7 @@
     }
 
     .status-label {
-      padding-right: 108px;
+      padding-right: 134px;
       margin-bottom: 7px;
       color: #94a3b8;
       font-size: 12px;
@@ -249,8 +252,8 @@
       right: 12px;
       display: flex;
       align-items: center;
-      gap: 7px;
-      max-width: 112px;
+      gap: 6px;
+      max-width: 138px;
       color: #f8fafc;
       font-size: 11px;
       font-weight: 900;
@@ -283,11 +286,122 @@
       white-space: nowrap;
     }
 
-    .helper-button:hover {
-      border-color: rgba(148, 163, 184, 0.8);
-      background: rgba(148, 163, 184, 0.22);
+    .helper-guide-button {
+      flex: 0 0 auto;
+      width: 22px;
+      height: 22px;
+      min-height: 22px;
+      padding: 0;
+      border-color: rgba(203, 213, 225, 0.28);
+      border-radius: 50%;
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+    }
+
+    .helper-guide-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: start end;
+      padding: 96px 28px 28px;
+      background: rgba(15, 23, 42, 0.36);
+    }
+
+    .helper-guide-overlay[hidden] {
+      display: none;
+    }
+
+    .helper-guide-dialog {
+      width: min(360px, calc(100vw - 32px));
+      border: 1px solid rgba(203, 213, 225, 0.7);
+      border-radius: var(--radius);
+      background: #ffffff;
+      color: var(--ink);
+      box-shadow: 0 20px 42px rgba(15, 23, 42, 0.22);
+    }
+
+    .helper-guide-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px 10px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .helper-guide-head h3 {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .helper-guide-close {
+      width: 26px;
+      height: 26px;
+      min-height: 26px;
+      padding: 0;
+      border-color: #cbd5e1;
+      color: #334155;
+      background: #f8fafc;
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    .helper-guide-body {
+      padding: 12px 14px 14px;
+      color: #334155;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .helper-guide-body p {
+      margin: 0 0 9px;
+    }
+
+    .helper-guide-download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      margin: 2px 0 11px;
+      padding: 0 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      color: #1e293b;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      font-size: 12px;
+      font-weight: 900;
+      text-decoration: none;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+      transition: border-color 120ms ease, color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
+    }
+
+    .helper-guide-download:hover {
+      border-color: #94a3b8;
+      color: #1e293b;
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
       transform: translateY(-1px);
-      box-shadow: 0 4px 9px rgba(15, 23, 42, 0.16);
+      box-shadow: 0 4px 9px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    }
+
+    .helper-guide-body ol {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .helper-guide-body li + li {
+      margin-top: 5px;
+    }
+
+    .helper-guide-body code {
+      color: #0f172a;
+      font-family: var(--mono);
+      font-size: 11px;
     }
 
     .dot {
@@ -1270,7 +1384,8 @@
           <div class="status-label">Status</div>
           <div class="helper-control">
             <input id="helperOnlineCheck" type="checkbox" aria-label="Helper online state">
-            <button id="helperLaunchButton" class="helper-button" type="button" title="Copy helper launch command">Helper</button>
+            <button id="helperLaunchButton" class="helper-button" type="button" title="Launch or check helper">Helper</button>
+            <button id="helperGuideButton" class="helper-guide-button" type="button" title="Open helper guide" aria-haspopup="dialog" aria-controls="helperGuideOverlay">?</button>
           </div>
           <div class="status-line">
             <span id="statusDot" class="dot"></span>
@@ -1419,6 +1534,26 @@
     </main>
   </div>
 
+  <div id="helperGuideOverlay" class="helper-guide-overlay" role="dialog" aria-modal="true" aria-labelledby="helperGuideTitle" hidden>
+    <section class="helper-guide-dialog">
+      <div class="helper-guide-head">
+        <h3 id="helperGuideTitle">헬퍼 설치 가이드</h3>
+        <button id="helperGuideCloseButton" class="helper-guide-close" type="button" aria-label="헬퍼 가이드 닫기">x</button>
+      </div>
+      <div class="helper-guide-body">
+        <p>헬퍼는 배포페이지와 사용자 PC의 로컬 OCR 파서를 연결합니다. PPT 자동 파싱과 HTML 저장을 쓰려면 최초 1회 설치가 필요합니다.</p>
+        <a class="helper-guide-download" href="./OCR_Helper_Setup.zip" download>Helper 설치 ZIP 다운로드</a>
+        <ol>
+          <li><code>OCR_Helper_Setup.zip</code>을 다운로드합니다.</li>
+          <li>압축을 풀고 <code>install_helper_protocol.cmd</code>를 한 번 실행합니다.</li>
+          <li>페이지로 돌아와 <code>Helper</code> 버튼을 눌러 헬퍼를 실행합니다.</li>
+          <li><code>OCR Local Parser Service</code> 창은 작업 중 닫지 않습니다.</li>
+          <li>체크가 켜지면 사용 가능, 꺼져 있으면 <code>127.0.0.1:8765</code> 연결이 안 된 상태입니다.</li>
+        </ol>
+      </div>
+    </section>
+  </div>
+
   <script>
     window.OCR_LOCAL_ASSET_BASE = window.OCR_LOCAL_ASSET_BASE || "./vendor/tesseract/";
     window.OCR_CDN_ASSET_BASE = window.OCR_CDN_ASSET_BASE || "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/";
@@ -1491,6 +1626,9 @@
       const glossaryStatus = document.getElementById("glossaryStatus");
       const helperOnlineCheck = document.getElementById("helperOnlineCheck");
       const helperLaunchButton = document.getElementById("helperLaunchButton");
+      const helperGuideButton = document.getElementById("helperGuideButton");
+      const helperGuideOverlay = document.getElementById("helperGuideOverlay");
+      const helperGuideCloseButton = document.getElementById("helperGuideCloseButton");
       const progressBar = document.getElementById("progressBar");
       const docStatusPill = document.getElementById("docStatusPill");
       const previewName = document.getElementById("previewName");
@@ -1542,8 +1680,8 @@
       const repairInputs = [];
       const codexEmptyMessage = "OCR or Markdown is required.";
       const codexTargetSavePath = "C:\\Users\\user\\Documents\\My Works\\OCR\\downloads";
-      const helperLaunchCommand = 'cd "C:\\Users\\user\\Documents\\My Works\\OCR"; .\\start_ocr_app.cmd';
       const localParserBaseUrl = "http://127.0.0.1:8765";
+      const localParserLaunchUrl = "ocr-parser://launch";
       let localParserOnline = false;
       let glossaryLoadAttempted = false;
       let qualityTeamGlossaryText = "";
@@ -1787,15 +1925,34 @@
         return localParserOnline;
       }
 
-      async function copyHelperLaunchCommand() {
-        try {
-          await navigator.clipboard.writeText(helperLaunchCommand);
-          setStatus("Helper launch command copied", "ready");
-        } catch (error) {
-          setStatus("Run helper: " + helperLaunchCommand, "ready");
+      async function launchOrCheckHelper() {
+        if (await checkLocalParserService({ quiet: true })) {
+          setStatus("Helper is online", "ready");
+          return;
         }
 
-        checkLocalParserService({ quiet: false });
+        setStatus("Opening helper launcher", "busy");
+        window.location.href = localParserLaunchUrl;
+
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 800));
+          if (await checkLocalParserService({ quiet: true })) {
+            setStatus("Helper is online", "ready");
+            return;
+          }
+        }
+
+        setStatus("Helper launcher is not registered. Run tools/register-ocr-protocol.ps1", "error");
+      }
+
+      function openHelperGuide() {
+        helperGuideOverlay.hidden = false;
+        helperGuideCloseButton.focus();
+      }
+
+      function closeHelperGuide() {
+        helperGuideOverlay.hidden = true;
+        helperGuideButton.focus();
       }
 
       function getGlossaryCandidateFiles() {
@@ -3538,7 +3695,15 @@
       applySourcePatchButton.addEventListener("click", applySourcePatch);
       insertTableButton.addEventListener("click", insertTableTemplate);
       undoButton.addEventListener("click", undoLastChange);
-      helperLaunchButton.addEventListener("click", copyHelperLaunchCommand);
+      helperLaunchButton.addEventListener("click", launchOrCheckHelper);
+      helperGuideButton.addEventListener("click", openHelperGuide);
+      helperGuideCloseButton.addEventListener("click", closeHelperGuide);
+      helperGuideOverlay.addEventListener("click", (event) => {
+        if (event.target === helperGuideOverlay) closeHelperGuide();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !helperGuideOverlay.hidden) closeHelperGuide();
+      });
       copySavePathButton.addEventListener("click", copyCodexSavePath);
       sendCodexPackageButton.addEventListener("click", downloadCodexReviewRequest);
       clearButton.addEventListener("click", clearMarkdown);

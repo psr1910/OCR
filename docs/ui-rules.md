@@ -98,6 +98,7 @@
 - Save and PPT automation testing must use `http://127.0.0.1:8765/`, not `file:///.../index.html`.
 - If the browser reports connection refused, the local parser service is not running or its terminal window was closed; relaunch with `start_ocr_app.cmd`.
 - The UI must monitor the local parser service health and show `Parser: online` or `Parser: offline` in the status metadata line.
+- The status card should include a compact `Helper` button. Because browsers cannot directly launch local scripts, this button copies the helper launch command and reruns the parser health check.
 - PPT automation requires the local parser service; if it is unavailable, the UI must show a clear status message and keep paste/drop/select image intake available.
 - Header and Slide insertion controls are not shown in the Markdown output toolbar. Header metadata is repaired from the quality inspector, and slides are created only by OCR capture.
 - Table insertion belongs in the Markdown output toolbar for manual supplemental data. It inserts at the editor cursor and does not create, select, rename, or delete slide blocks.

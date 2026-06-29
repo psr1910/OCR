@@ -238,6 +238,42 @@
       line-height: 1.25;
     }
 
+    .helper-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .helper-row .status-meta {
+      min-width: 0;
+      flex: 1;
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .helper-button {
+      flex: 0 0 auto;
+      height: 22px;
+      min-height: 22px;
+      padding: 0 9px;
+      border-color: rgba(203, 213, 225, 0.28);
+      border-radius: 5px;
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+    }
+
+    .helper-button:hover {
+      border-color: rgba(148, 163, 184, 0.8);
+      background: rgba(148, 163, 184, 0.22);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 9px rgba(15, 23, 42, 0.16);
+    }
+
     .dot {
       margin-top: 5px;
       width: 10px;
@@ -1220,7 +1256,10 @@
             <span id="statusDot" class="dot"></span>
             <span id="statusText">Waiting for image input</span>
           </div>
-          <div id="glossaryStatus" class="status-meta">Glossary: none</div>
+          <div class="helper-row">
+            <div id="glossaryStatus" class="status-meta">Parser: checking · Glossary: none</div>
+            <button id="helperLaunchButton" class="helper-button" type="button" title="Copy helper launch command">Helper</button>
+          </div>
         </section>
       </div>
     </header>
@@ -1433,6 +1472,7 @@
       const statusDot = document.getElementById("statusDot");
       const statusText = document.getElementById("statusText");
       const glossaryStatus = document.getElementById("glossaryStatus");
+      const helperLaunchButton = document.getElementById("helperLaunchButton");
       const progressBar = document.getElementById("progressBar");
       const docStatusPill = document.getElementById("docStatusPill");
       const previewName = document.getElementById("previewName");
@@ -1484,6 +1524,7 @@
       const repairInputs = [];
       const codexEmptyMessage = "OCR or Markdown is required.";
       const codexTargetSavePath = "C:\\Users\\user\\Documents\\My Works\\OCR\\downloads";
+      const helperLaunchCommand = 'cd "C:\\Users\\user\\Documents\\My Works\\OCR"; .\\start_ocr_app.cmd';
       const localParserBaseUrl = "http://127.0.0.1:8765";
       let localParserOnline = false;
       let glossaryLoadAttempted = false;
@@ -1725,6 +1766,17 @@
         }
 
         return localParserOnline;
+      }
+
+      async function copyHelperLaunchCommand() {
+        try {
+          await navigator.clipboard.writeText(helperLaunchCommand);
+          setStatus("Helper launch command copied", "ready");
+        } catch (error) {
+          setStatus("Run helper: " + helperLaunchCommand, "ready");
+        }
+
+        checkLocalParserService({ quiet: false });
       }
 
       function getGlossaryCandidateFiles() {
@@ -3467,6 +3519,7 @@
       applySourcePatchButton.addEventListener("click", applySourcePatch);
       insertTableButton.addEventListener("click", insertTableTemplate);
       undoButton.addEventListener("click", undoLastChange);
+      helperLaunchButton.addEventListener("click", copyHelperLaunchCommand);
       copySavePathButton.addEventListener("click", copyCodexSavePath);
       sendCodexPackageButton.addEventListener("click", downloadCodexReviewRequest);
       clearButton.addEventListener("click", clearMarkdown);

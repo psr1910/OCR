@@ -25,6 +25,7 @@ If the browser says the connection was refused:
 - Run `.\start_ocr_app.cmd` again.
 - Keep the `OCR Local Parser Service` terminal window open.
 - Use `http://127.0.0.1:8765/`, not `file:///.../index.html`.
+- On a hosted/static page, use the `Helper` button to copy the local launch command, then run it in PowerShell.
 
 ## Project Map
 

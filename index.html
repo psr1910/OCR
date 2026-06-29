@@ -1,0 +1,3503 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OCR Markdown Parser</title>
+  <style>
+    :root {
+      --bg: #e8eef5;
+      --ink: #172033;
+      --muted: #64748b;
+      --panel: #ffffff;
+      --line: #d5deea;
+      --line-strong: #9badc3;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --blue-soft: #dbeafe;
+      --slate: #0f172a;
+      --slate-2: #1e293b;
+      --green: #15803d;
+      --green-soft: #ecfdf3;
+      --amber: #b45309;
+      --red: #dc2626;
+      --red-soft: #fff1f2;
+      --shadow: 0 10px 26px rgba(15, 23, 42, 0.1);
+      --radius: 8px;
+      --font: "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+      --mono: "Cascadia Mono", Consolas, "SFMono-Regular", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: var(--font);
+    }
+
+    .shell {
+      display: flex;
+      width: calc(100% - 24px);
+      height: calc(100vh - 24px);
+      margin: 12px;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      min-height: 76px;
+      padding: 14px 18px;
+      border: 1px solid rgba(203, 213, 225, 0.22);
+      border-radius: var(--radius);
+      background: var(--slate);
+      box-shadow: var(--shadow);
+      color: #f8fafc;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .title p {
+      margin: 9px 0 0;
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .status-card {
+      display: grid;
+      grid-template-rows: auto minmax(34px, 1fr) auto;
+      width: 300px;
+      height: 140px;
+      padding: 12px 14px;
+      border: 1px solid rgba(203, 213, 225, 0.25);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, 0.45);
+    }
+
+    .codex-card {
+      display: grid;
+      grid-template-rows: auto auto auto auto;
+      width: 300px;
+      height: 140px;
+      gap: 6px;
+      padding: 12px 14px 12px;
+      border: 1px solid rgba(203, 213, 225, 0.25);
+      border-radius: var(--radius);
+      background: rgba(15, 23, 42, 0.45);
+    }
+
+    .codex-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #f8fafc;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .codex-title input {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--blue);
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .codex-note {
+      color: #cbd5e1;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .codex-path-button {
+      align-self: start;
+      overflow: hidden;
+      width: 72px;
+      height: 20px;
+      min-height: 20px;
+      padding: 0 9px;
+      border-color: rgba(203, 213, 225, 0.28);
+      border-radius: 5px;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .codex-path-button:not(:disabled):hover {
+      border-color: rgba(148, 163, 184, 0.8);
+      color: #f8fafc;
+      background: rgba(148, 163, 184, 0.18);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 7px rgba(15, 23, 42, 0.14);
+    }
+
+    .codex-card button {
+      align-self: start;
+      height: 30px;
+      min-height: 30px;
+      border-color: rgba(203, 213, 225, 0.35);
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+    }
+
+    .codex-card .codex-path-button {
+      width: 72px;
+      height: 20px;
+      min-height: 20px;
+      padding: 0 9px;
+      font-size: 11px;
+    }
+
+    .codex-card button:hover {
+      border-color: rgba(148, 163, 184, 0.8);
+      color: #f8fafc;
+      background: rgba(148, 163, 184, 0.22);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 9px rgba(15, 23, 42, 0.16);
+    }
+
+    .codex-card button.is-action {
+      border-color: rgba(148, 163, 184, 0.8);
+      background: rgba(148, 163, 184, 0.22);
+    }
+
+    .codex-card button.is-success {
+      border-color: rgba(16, 185, 129, 0.9);
+      background: rgba(16, 185, 129, 0.22);
+    }
+
+    .codex-card button.is-error {
+      border-color: rgba(239, 68, 68, 0.9);
+      background: rgba(239, 68, 68, 0.24);
+    }
+
+    .status-label {
+      margin-bottom: 7px;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-height: 34px;
+      padding: 4px 0 6px;
+      font-size: 14px;
+      font-weight: 800;
+      overflow: hidden;
+    }
+
+    #statusText {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      line-height: 1.35;
+    }
+
+    .status-meta {
+      align-self: end;
+      margin-top: 0;
+      padding-top: 8px;
+      border-top: 1px solid rgba(203, 213, 225, 0.18);
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .dot {
+      margin-top: 5px;
+      width: 10px;
+      height: 10px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 5px rgba(21, 128, 61, 0.15);
+    }
+
+    .dot.busy {
+      background: var(--amber);
+      box-shadow: 0 0 0 5px rgba(180, 83, 9, 0.16);
+      animation: blink 1s ease-in-out infinite;
+    }
+
+    .dot.error {
+      background: var(--red);
+      box-shadow: 0 0 0 5px rgba(220, 38, 38, 0.15);
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 0.55; transform: scale(0.92); }
+      50% { opacity: 1; transform: scale(1.08); }
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(320px, 36%) minmax(0, 64%);
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .panel {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfdff;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .panel-head span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .panel-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 18px;
+    }
+
+    .panel-actions button {
+      min-height: 32px;
+      padding: 0 12px;
+      border-color: #cbd5e1;
+      color: #1e293b;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      font-size: 12px;
+      font-weight: 800;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    }
+
+    .panel-actions button:hover {
+      border-color: #94a3b8;
+      color: #1e293b;
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 9px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    }
+
+    .panel-actions button:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
+    }
+
+    .panel-actions button:disabled,
+    .panel-actions button:disabled:hover,
+    .panel-actions button:disabled:active {
+      border-color: #cbd5e1;
+      color: #1e293b;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      transform: none;
+      box-shadow: none;
+    }
+
+    .drop-zone {
+      display: grid;
+      place-items: center;
+      min-height: 70px;
+      margin: 10px 10px 8px;
+      padding: 10px 12px;
+      border: 2px dotted var(--line-strong);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, #eff6ff, #f8fbff);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      transform: translateY(-1px);
+    }
+
+    .drop-zone strong {
+      display: block;
+      margin-bottom: 4px;
+      color: #1e3a8a;
+      font-size: 13px;
+    }
+
+    .drop-zone p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    .select-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      margin-top: 8px;
+      padding: 0 12px;
+      border-radius: 6px;
+      color: #ffffff;
+      background: var(--blue);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .preview-shell {
+      display: flex;
+      min-height: 0;
+      margin: 0 10px 10px;
+      flex: 0 0 auto;
+      flex-direction: column;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #e8eef6;
+      overflow: hidden;
+    }
+
+    .preview-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 11px;
+      border-bottom: 1px solid var(--line);
+      background: #f8fbff;
+    }
+
+    .preview-head strong {
+      font-size: 13px;
+      color: #1e293b;
+    }
+
+    .preview-head span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .image-preview {
+      display: grid;
+      place-items: center;
+      height: 470px;
+      min-height: 470px;
+      max-height: 470px;
+      padding: 10px;
+      overflow: auto;
+      background:
+        linear-gradient(45deg, rgba(148, 163, 184, 0.16) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(148, 163, 184, 0.16) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.16) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.16) 75%),
+        #f8fafc;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+      background-size: 16px 16px;
+    }
+
+    .image-preview img {
+      display: none;
+      max-width: 100%;
+      max-height: 100%;
+      border: 1px solid rgba(15, 23, 42, 0.2);
+      border-radius: 4px;
+      background: #ffffff;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+      object-fit: contain;
+    }
+
+    .preview-empty {
+      max-width: 260px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    .queue {
+      display: flex;
+      min-height: 0;
+      margin: 0 10px 10px;
+      padding-top: 14px;
+      flex: 1;
+      flex-direction: column;
+      border-top: 1px solid var(--line);
+    }
+
+    .queue-title {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .queue-list {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .queue-item {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) 118px;
+      gap: 10px;
+      align-items: center;
+      padding: 8px;
+      border: 1px solid #d8e2ef;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .queue-item img {
+      width: 48px;
+      height: 38px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: #e2e8f0;
+    }
+
+    .queue-item strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+    }
+
+    .queue-item span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .queue-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 56px);
+      gap: 6px;
+      justify-content: end;
+      align-content: center;
+    }
+
+    .queue-actions button {
+      width: 56px;
+      min-height: 30px;
+      padding: 0;
+      font-size: 12px;
+    }
+
+    .editor {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .editor-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 0;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .editor-main {
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+
+    .toolbar button {
+      border-color: #cbd5e1;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+      font-weight: 800;
+    }
+
+    .toolbar button:hover {
+      border-color: #94a3b8;
+      color: #1e293b;
+      background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 9px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+    }
+
+    .toolbar button:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.14);
+    }
+
+    .toolbar button:disabled {
+      transform: none;
+      box-shadow: none;
+    }
+
+    .toolbar button:disabled:hover,
+    .toolbar button:disabled:active {
+      border-color: #cbd5e1;
+      color: #1e293b;
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      transform: none;
+      box-shadow: none;
+    }
+
+    button {
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid #b7c6d8;
+      border-radius: 6px;
+      color: #1e293b;
+      background: #ffffff;
+      font: 800 13px var(--font);
+      cursor: pointer;
+      transition: border-color 120ms ease, color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease, opacity 120ms ease;
+    }
+
+    button:hover {
+      border-color: var(--blue);
+      color: var(--blue-dark);
+    }
+
+    button.primary {
+      border-color: var(--blue);
+      color: #ffffff;
+      background: var(--blue);
+    }
+
+    .toolbar button.primary {
+      border-color: #1d4ed8;
+      background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+      box-shadow: 0 2px 5px rgba(37, 99, 235, 0.28);
+    }
+
+    button.primary:hover {
+      background: var(--blue-dark);
+    }
+
+    button.secondary {
+      border-color: #cbd5e1;
+      color: #334155;
+      background: #f8fafc;
+    }
+
+    button.secondary:hover {
+      border-color: #94a3b8;
+      color: #1e293b;
+      background: #eef4fb;
+    }
+
+    button.danger {
+      border-color: #fecaca;
+      color: #b91c1c;
+      background: #fff7f7;
+    }
+
+    button.danger:hover {
+      border-color: #fca5a5;
+      color: #991b1b;
+      background: #fee2e2;
+    }
+
+    button.compact {
+      min-height: 26px;
+      padding: 0 8px;
+      font-size: 12px;
+    }
+
+    .queue-actions button.compact {
+      width: 56px;
+      min-height: 30px;
+      padding: 0;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    button:disabled:hover,
+    button:disabled:active {
+      border-color: #b7c6d8;
+      color: #1e293b;
+      background: #ffffff;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button.primary:disabled:hover,
+    button.primary:disabled:active {
+      border-color: var(--blue);
+      color: #ffffff;
+      background: var(--blue);
+    }
+
+    .codex-card button:disabled:hover,
+    .codex-card button:disabled:active {
+      border-color: rgba(203, 213, 225, 0.35);
+      color: #f8fafc;
+      background: rgba(255, 255, 255, 0.08);
+      transform: none;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
+    }
+
+    .codex-card .codex-path-button:disabled,
+    .codex-card .codex-path-button:disabled:hover,
+    .codex-card .codex-path-button:disabled:active {
+      border-color: rgba(203, 213, 225, 0.2);
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: none;
+      opacity: 0.5;
+    }
+
+    .validation {
+      display: grid;
+      grid-template-columns: 1fr;
+      align-content: start;
+      align-items: start;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: auto;
+      padding: 10px;
+      background: transparent;
+    }
+
+    .qa-summary {
+      display: grid;
+      align-self: start;
+      gap: 0;
+      padding: 0;
+      border: 1px solid #d8e2ef;
+      border-radius: 6px;
+      background: #ffffff;
+      box-shadow: inset 0 3px 0 #94a3b8, 0 1px 2px rgba(15, 23, 42, 0.05);
+      overflow: hidden;
+    }
+
+    .qa-summary.fail {
+      box-shadow: inset 0 3px 0 var(--red), 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .qa-summary.pass {
+      box-shadow: inset 0 3px 0 var(--green), 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .qa-summary-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px;
+      padding: 12px 11px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .qa-summary-head > :not(.doc-status-pill) {
+      grid-column: 1;
+    }
+
+    .doc-status-pill {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      align-self: start;
+      min-width: 64px;
+      padding: 3px 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 10px;
+      font-weight: 900;
+      text-align: center;
+      text-transform: uppercase;
+    }
+
+    .doc-status-pill.confirm {
+      border-color: #bbf7d0;
+      color: #047857;
+      background: #f0fdf4;
+    }
+
+    .doc-status-pill.review {
+      border-color: #fed7aa;
+      color: #c2410c;
+      background: #fff7ed;
+    }
+
+    .qa-rule-list {
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      background: #fbfdff;
+    }
+
+    .qa-summary-label {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .qa-summary-title {
+      color: #172033;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .qa-summary-detail {
+      color: #64748b;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .rule-badge {
+      min-height: 56px;
+      padding: 9px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.45;
+      background: #fbfdff;
+    }
+
+    .rule-pass {
+      color: #1e293b;
+      background: #ffffff;
+    }
+
+    .rule-fail {
+      color: #1e293b;
+      background: #ffffff;
+    }
+
+    .rule-neutral {
+      color: #1e293b;
+      background: #ffffff;
+    }
+
+    .required-mark {
+      color: #b91c1c;
+      font-weight: 900;
+    }
+
+    .rule-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .rule-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #1e293b;
+    }
+
+    .rule-state {
+      flex: 0 0 auto;
+      min-width: 60px;
+      padding: 2px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      color: #64748b;
+      background: #f8fafc;
+      font-size: 11px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .rule-pass .rule-state {
+      border-color: #bbf7d0;
+      color: #047857;
+      background: #f0fdf4;
+    }
+
+    .rule-fail .rule-state {
+      border-color: #fecaca;
+      color: #b91c1c;
+      background: #fff7f7;
+    }
+
+    .rule-value {
+      min-height: 28px;
+      margin: 0 0 6px;
+      padding: 6px 8px;
+      border: 1px solid #edf2f7;
+      border-radius: 5px;
+      color: #334155;
+      background: #fbfdff;
+      font: 12px/1.45 var(--mono);
+      overflow-wrap: anywhere;
+      white-space: pre-line;
+    }
+
+    .slide-checklist {
+      display: grid;
+      gap: 6px;
+      font-family: var(--font);
+      white-space: normal;
+    }
+
+    .slide-check-row {
+      display: grid;
+      grid-template-columns: 16px minmax(0, 1fr);
+      gap: 7px;
+      align-items: center;
+      min-height: 24px;
+      color: #334155;
+      font-size: 12px;
+    }
+
+    .slide-check-row input {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--blue);
+    }
+
+    .slide-check-row strong {
+      overflow: hidden;
+      color: #1e293b;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .slide-check-row.fail strong {
+      color: #b91c1c;
+      font-weight: 400;
+    }
+
+    .rule-editor {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 58px;
+      gap: 6px;
+      align-items: start;
+    }
+
+    .rule-editor.slide-editor {
+      grid-template-columns: 46px minmax(0, 1fr) 58px;
+    }
+
+    .rule-editor.header-editor {
+      grid-template-columns: minmax(0, 1fr) 58px;
+    }
+
+    .rule-editor.metadata-editor {
+      grid-template-columns: minmax(0, 1fr) 58px;
+    }
+
+    .rule-editor input,
+    .rule-editor textarea {
+      width: 100%;
+      min-height: 28px;
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      color: #172033;
+      background: #ffffff;
+      font: 11px/1.4 var(--font);
+      resize: vertical;
+    }
+
+    .rule-editor input::placeholder,
+    .rule-editor textarea::placeholder {
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .rule-editor input.input-required {
+      border-color: #fecaca;
+    }
+
+    .rule-editor textarea {
+      min-height: 58px;
+      grid-column: 1 / -1;
+    }
+
+    .rule-editor button {
+      width: 58px;
+      min-height: 28px;
+      padding: 0;
+      font-size: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    }
+
+    .rule-editor.slide-editor button {
+      width: 100%;
+      padding: 0;
+    }
+
+    .rule-editor .rule-del {
+      width: 46px;
+    }
+
+    .qa-sidebar {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      border-left: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .qa-head {
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    }
+
+    .qa-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .qa-head h3 {
+      margin: 0;
+      color: #1e293b;
+      font-size: 15px;
+    }
+
+    .qa-required-note {
+      margin-left: auto;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.45;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .field {
+      display: grid;
+      gap: 5px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: #172033;
+      background: #f8fbff;
+      font: 13px var(--font);
+    }
+
+    .field input:focus {
+      border-color: var(--blue);
+      outline: 2px solid rgba(37, 99, 235, 0.14);
+    }
+
+    .progress {
+      height: 4px;
+      background: #dbeafe;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), #38bdf8);
+      transition: width 0.18s ease;
+    }
+
+    textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      padding: 16px;
+      border: 0;
+      outline: 0;
+      resize: vertical;
+      color: #111827;
+      background: #fbfdff;
+      font: 14px/1.62 var(--mono);
+      tab-size: 2;
+    }
+
+    .footnote {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      background: #ffffff;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .footnote-owner {
+      flex: 0 0 auto;
+      margin-left: auto;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        height: 100vh;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .shell {
+        height: calc(100vh - 20px);
+        min-height: 0;
+        margin: 10px;
+        width: calc(100% - 20px);
+      }
+
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .status-card {
+        width: 100%;
+      }
+
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .editor-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .editor-main {
+        border-right: 0;
+      }
+
+      .qa-sidebar {
+        border-top: 1px solid var(--line);
+      }
+
+      .image-preview {
+        height: 470px;
+        min-height: 470px;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .shell {
+        width: calc(100% - 16px);
+        margin: 8px;
+      }
+
+      .panel-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .panel-actions {
+        width: 100%;
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .toolbar,
+      button {
+        width: 100%;
+      }
+
+      .footnote {
+        flex-wrap: wrap;
+      }
+
+      .validation {
+        grid-template-columns: 1fr;
+      }
+
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="title">
+        <h1>PPT 캡처 OCR Markdown Parser</h1>
+        <p>붙여넣기, 드래그 앤 드롭, 파일 선택으로 Slide 이미지를 넣으면 브라우저에서만 OCR을 수행하고 Markdown으로 누적합니다.</p>
+      </div>
+
+      <div class="top-actions">
+        <section class="codex-card" aria-label="Codex correction handoff">
+          <label class="codex-title">
+            <input type="checkbox" checked tabindex="-1" aria-label="Codex correction handoff enabled">
+            <span>Codex 보정</span>
+          </label>
+          <div class="codex-note">Markdown, manifest, captured images를 HTML Vision Package로 저장합니다.</div>
+          <button id="copySavePathButton" class="codex-path-button" type="button" title="C:\Users\user\Documents\My Works\OCR\downloads">Save path</button>
+          <button id="sendCodexPackageButton" type="button">Codex 보정 보내기</button>
+        </section>
+
+        <section class="status-card" aria-live="polite">
+          <div class="status-label">Status</div>
+          <div class="status-line">
+            <span id="statusDot" class="dot"></span>
+            <span id="statusText">Waiting for image input</span>
+          </div>
+          <div id="glossaryStatus" class="status-meta">Glossary: none</div>
+        </section>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>원본 Slide</h2>
+          <div class="panel-actions">
+            <span>paste / drop / select</span>
+            <button id="autoParseButton" type="button">자동 파싱</button>
+          </div>
+        </div>
+        <input id="pptFileInput" type="file" accept=".ppt,.pptx,.pptm,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden>
+
+        <label id="dropZone" class="drop-zone" for="fileInput">
+          <div>
+            <strong>Ctrl+V 또는 드롭으로 Slide 캡처 입력</strong>
+            <p>PowerPoint, 브라우저, 캡처 도구에서 복사한 이미지를 바로 붙여넣을 수 있습니다.</p>
+            <span class="select-button">이미지 선택</span>
+          </div>
+          <input id="fileInput" type="file" accept="image/*" multiple>
+        </label>
+
+        <div class="preview-shell">
+          <div class="preview-head">
+            <strong>실시간 원본 미리보기</strong>
+            <span id="previewName">이미지 없음</span>
+          </div>
+          <div class="image-preview">
+            <div id="previewEmpty" class="preview-empty">붙여넣기한 Slide 이미지가 여기에 크게 표시됩니다. 우측 Markdown과 대조하면서 바로 수정하세요.</div>
+            <img id="mainPreviewImage" alt="붙여넣은 Slide 원본 미리보기">
+          </div>
+        </div>
+
+        <div class="queue">
+          <div class="queue-title">
+            <span>Captured Images</span>
+            <span id="queueCount">0</span>
+          </div>
+          <div id="queueList" class="queue-list"></div>
+        </div>
+      </section>
+
+      <section class="panel editor">
+        <div class="panel-head">
+          <div>
+            <h2>Markdown Output</h2>
+            <span id="docStats">0 characters</span>
+          </div>
+          <div class="toolbar">
+            <button id="insertTableButton" type="button">Table</button>
+            <button id="undoButton" type="button" disabled>Undo</button>
+            <button id="clearButton" type="button">Clear</button>
+            <button id="downloadButton" class="primary" type="button" disabled>Download Markdown (.md)</button>
+          </div>
+        </div>
+
+        <div class="progress" aria-hidden="true">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+
+        <div class="editor-workspace">
+          <div class="editor-main">
+            <textarea id="output" spellcheck="false" placeholder="OCR 결과가 Markdown 형식으로 여기에 누적됩니다."></textarea>
+          </div>
+
+          <aside class="qa-sidebar" aria-label="Markdown 품질 점검">
+            <div class="qa-head">
+              <div class="qa-title-row">
+                <h3>MD 품질 점검</h3>
+                <span class="qa-required-note"><span class="required-mark">*</span>는 필수 규칙입니다.</span>
+              </div>
+            </div>
+            <div class="validation" aria-live="polite">
+              <div id="finalStatusCard" class="qa-summary">
+                <div class="qa-summary-head">
+                  <div class="qa-summary-label">Status</div>
+                  <div id="docStatusPill" class="doc-status-pill">Review</div>
+                  <div id="finalStatusText" class="qa-summary-title">STANDBY</div>
+                  <div id="finalStatusDetail" class="qa-summary-detail">Waiting for OCR input.</div>
+                </div>
+                <div class="qa-rule-list">
+                  <div id="badgeHeader" class="rule-badge rule-neutral">
+                    <div class="rule-topline">
+                      <span class="rule-title">① Header <span class="required-mark">*</span></span>
+                      <span class="rule-state" data-rule-state>CHECK</span>
+                    </div>
+                    <div class="rule-value" data-rule-value>No data</div>
+                    <div class="rule-editor header-editor">
+                      <input id="headerDepartmentInput" type="text" placeholder="Department">
+                      <button id="applyHeaderDepartmentButton" type="button">Apply</button>
+                      <input id="headerReportTypeInput" type="text" placeholder="Report Type">
+                      <button id="applyHeaderReportTypeButton" type="button">Apply</button>
+                      <input id="headerFailureModeInput" type="text" placeholder="Failure Mode">
+                      <button id="applyHeaderFailureModeButton" type="button">Apply</button>
+                    </div>
+                  </div>
+                  <div id="badgeSource" class="rule-badge rule-neutral">
+                    <div class="rule-topline">
+                      <span class="rule-title">② Source(PPT url) <span class="required-mark">*</span></span>
+                      <span class="rule-state" data-rule-state>CHECK</span>
+                    </div>
+                    <div class="rule-value" data-rule-value>No data</div>
+                    <div class="rule-editor">
+                      <input id="sourcePatchInput" type="text" placeholder="PPT EDM url">
+                      <button id="applySourcePatchButton" type="button">Apply</button>
+                    </div>
+                  </div>
+                  <div id="badgeMetadata" class="rule-badge rule-neutral">
+                    <div class="rule-topline">
+                      <span class="rule-title">③ Metadata <span class="required-mark">*</span></span>
+                      <span class="rule-state" data-rule-state>CHECK</span>
+                    </div>
+                    <div class="rule-value" data-rule-value>No data</div>
+                    <div class="rule-editor metadata-editor">
+                      <input id="metaProductInput" type="text" placeholder="Product">
+                      <button id="applyMetaProductButton" type="button">Apply</button>
+                      <input id="metaProjectInput" type="text" placeholder="Project">
+                      <button id="applyMetaProjectButton" type="button">Apply</button>
+                      <input id="metaTestTypeInput" type="text" placeholder="Test Type">
+                      <button id="applyMetaTestTypeButton" type="button">Apply</button>
+                      <input id="metaOccurrenceDateInput" type="text" placeholder="Occurrence Date">
+                      <button id="applyMetaOccurrenceDateButton" type="button">Apply</button>
+                      <input id="metaAuthorInput" type="text" placeholder="Author">
+                      <button id="applyMetaAuthorButton" type="button">Apply</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="footnote">
+          <span>외부 서버로 이미지를 전송하지 않습니다. 기본은 로컬 ./vendor/tesseract/ 자산을 사용하며, 없을 때는 CDN 캐시 경로로 Tesseract.js 런타임만 불러옵니다.</span>
+          <span class="footnote-owner">Managed by saeron.park</span>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    window.OCR_LOCAL_ASSET_BASE = window.OCR_LOCAL_ASSET_BASE || "./vendor/tesseract/";
+    window.OCR_CDN_ASSET_BASE = window.OCR_CDN_ASSET_BASE || "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/";
+    window.OCR_CDN_CORE_PATH = window.OCR_CDN_CORE_PATH || "https://cdn.jsdelivr.net/npm/tesseract.js-core@5";
+    window.OCR_CDN_LANG_PATH = window.OCR_CDN_LANG_PATH || "https://tessdata.projectnaptha.com/4.0.0";
+    window.QUALITY_TEAM_GLOSSARY_FILES = window.QUALITY_TEAM_GLOSSARY_FILES || [];
+    window.OCR_ASSET_BASE = window.OCR_LOCAL_ASSET_BASE;
+    window.OCR_ASSET_MODE = "local";
+
+    function loadTesseractRuntime() {
+      return new Promise((resolve, reject) => {
+        const localScript = document.createElement("script");
+
+        localScript.src = window.OCR_LOCAL_ASSET_BASE + "tesseract.min.js";
+        localScript.onload = () => {
+          window.OCR_ASSET_BASE = window.OCR_LOCAL_ASSET_BASE;
+          window.OCR_ASSET_MODE = "local";
+          resolve();
+        };
+        localScript.onerror = () => {
+          const cdnScript = document.createElement("script");
+
+          cdnScript.src = window.OCR_CDN_ASSET_BASE + "tesseract.min.js";
+          cdnScript.onload = () => {
+            window.OCR_ASSET_BASE = window.OCR_CDN_ASSET_BASE;
+            window.OCR_ASSET_MODE = "cdn";
+            resolve();
+          };
+          cdnScript.onerror = () => reject(new Error("Tesseract.js runtime failed to load from local assets or CDN."));
+          document.head.appendChild(cdnScript);
+        };
+
+        document.head.appendChild(localScript);
+      });
+    }
+  </script>
+  <script>
+    loadTesseractRuntime().then(() => {
+      "use strict";
+
+      const languages = "kor+eng";
+      const defaultDepartment = "개발품질그룹";
+      const defaultReportType = "Reliability Failure Report";
+      const documentHeaderTemplate = "# [개발품질그룹]\n\n**Report Type:** Reliability Failure Report\n**Product:** TBD\n**Project:** TBD\n**Failure Mode:** TBD\n**Test Type:** TBD\n**Occurrence Date:** TBD\n**Source(PPT url):** TBD\n**Author:** TBD\n**Method:** Client-side Tesseract OCR scoring (kor+eng, A/B/C) + Codex Vision review\n**Status:** Review\n\n---\n";
+      const slideTemplate = "### ■ Slide {NUMBER}\n\n#### Raw OCR\n\n{TEXT}\n\n---\n";
+      const tableTemplate = "| Item | Value | Status |\n| :--- | :---: | :--- |\n| Data | 0.00 | Review |\n";
+      function getTesseractOptions() {
+        if (window.OCR_ASSET_MODE === "cdn") {
+          return {
+            workerPath: window.OCR_CDN_ASSET_BASE + "worker.min.js",
+            corePath: window.OCR_CDN_CORE_PATH,
+            langPath: window.OCR_CDN_LANG_PATH
+          };
+        }
+
+        return {
+          workerPath: window.OCR_LOCAL_ASSET_BASE + "worker.min.js",
+          corePath: window.OCR_LOCAL_ASSET_BASE + "tesseract-core.wasm.js",
+          langPath: window.OCR_LOCAL_ASSET_BASE + "lang-data"
+        };
+      }
+
+      const dropZone = document.getElementById("dropZone");
+      const autoParseButton = document.getElementById("autoParseButton");
+      const pptFileInput = document.getElementById("pptFileInput");
+      const fileInput = document.getElementById("fileInput");
+      const output = document.getElementById("output");
+      const statusDot = document.getElementById("statusDot");
+      const statusText = document.getElementById("statusText");
+      const glossaryStatus = document.getElementById("glossaryStatus");
+      const progressBar = document.getElementById("progressBar");
+      const docStatusPill = document.getElementById("docStatusPill");
+      const previewName = document.getElementById("previewName");
+      const previewEmpty = document.getElementById("previewEmpty");
+      const mainPreviewImage = document.getElementById("mainPreviewImage");
+      const queueList = document.getElementById("queueList");
+      const queueCount = document.getElementById("queueCount");
+      const docStats = document.getElementById("docStats");
+      const badgeHeader = document.getElementById("badgeHeader");
+      const badgeSource = document.getElementById("badgeSource");
+      const badgeMetadata = document.getElementById("badgeMetadata");
+      const finalStatusCard = document.getElementById("finalStatusCard");
+      const finalStatusText = document.getElementById("finalStatusText");
+      const finalStatusDetail = document.getElementById("finalStatusDetail");
+      const headerDepartmentInput = document.getElementById("headerDepartmentInput");
+      const headerReportTypeInput = document.getElementById("headerReportTypeInput");
+      const headerFailureModeInput = document.getElementById("headerFailureModeInput");
+      const metaProductInput = document.getElementById("metaProductInput");
+      const metaProjectInput = document.getElementById("metaProjectInput");
+      const metaTestTypeInput = document.getElementById("metaTestTypeInput");
+      const metaOccurrenceDateInput = document.getElementById("metaOccurrenceDateInput");
+      const metaAuthorInput = document.getElementById("metaAuthorInput");
+      const sourcePatchInput = document.getElementById("sourcePatchInput");
+      const applyHeaderDepartmentButton = document.getElementById("applyHeaderDepartmentButton");
+      const applyHeaderReportTypeButton = document.getElementById("applyHeaderReportTypeButton");
+      const applyHeaderFailureModeButton = document.getElementById("applyHeaderFailureModeButton");
+      const applyMetaProductButton = document.getElementById("applyMetaProductButton");
+      const applyMetaProjectButton = document.getElementById("applyMetaProjectButton");
+      const applyMetaTestTypeButton = document.getElementById("applyMetaTestTypeButton");
+      const applyMetaOccurrenceDateButton = document.getElementById("applyMetaOccurrenceDateButton");
+      const applyMetaAuthorButton = document.getElementById("applyMetaAuthorButton");
+      const applySourcePatchButton = document.getElementById("applySourcePatchButton");
+      const insertTableButton = document.getElementById("insertTableButton");
+      const undoButton = document.getElementById("undoButton");
+      const copySavePathButton = document.getElementById("copySavePathButton");
+      const sendCodexPackageButton = document.getElementById("sendCodexPackageButton");
+      const clearButton = document.getElementById("clearButton");
+      const downloadButton = document.getElementById("downloadButton");
+
+      let slideCount = 1;
+      let isProcessing = false;
+      let currentPreviewUrl = "";
+      let activeJob = null;
+      let lastRawOcrText = "";
+      let lastRawOcrSlideNumber = "";
+      let codexButtonTimer = null;
+      let codexPathButtonTimer = null;
+      let undoSnapshot = null;
+      const repairInputs = [];
+      const codexEmptyMessage = "OCR or Markdown is required.";
+      const codexTargetSavePath = "C:\\Users\\user\\Documents\\My Works\\OCR\\downloads";
+      const localParserBaseUrl = "http://127.0.0.1:8765";
+      let localParserOnline = false;
+      let glossaryLoadAttempted = false;
+      let qualityTeamGlossaryText = "";
+      let qualityTeamGlossaryFileName = "";
+      const capturedItems = [];
+      const queue = [];
+
+      function createCaptureId(slideNumber) {
+        const randomPart = Math.random().toString(36).slice(2, 8);
+
+        return "cap-" + Date.now().toString(36) + "-s" + slideNumber + "-" + randomPart;
+      }
+
+      function setStatus(message, state = "ready") {
+        statusText.textContent = message;
+        statusDot.className = "dot";
+        if (state === "busy") statusDot.classList.add("busy");
+        if (state === "error") statusDot.classList.add("error");
+      }
+
+      function setProgress(value) {
+        progressBar.style.width = Math.round(Math.max(0, Math.min(1, value)) * 100) + "%";
+      }
+
+      function updateStats() {
+        docStats.textContent = output.value.length.toLocaleString("ko-KR") + " characters";
+        validateMarkdownAndToggle();
+      }
+
+      function getEditorScrollSnapshot() {
+        return { top: output.scrollTop };
+      }
+
+      function restoreEditorScroll(snapshot) {
+        if (!snapshot) return;
+
+        output.scrollTop = snapshot.top;
+        window.requestAnimationFrame(() => {
+          output.scrollTop = snapshot.top;
+        });
+      }
+
+      function finishManualUpdate(snapshot) {
+        updateStats();
+        restoreEditorScroll(snapshot);
+      }
+
+      function rememberUndo(label = "Change") {
+        undoSnapshot = {
+          value: output.value,
+          selectionStart: output.selectionStart,
+          selectionEnd: output.selectionEnd,
+          scrollTop: output.scrollTop,
+          label
+        };
+        updateUndoButton();
+      }
+
+      function updateUndoButton() {
+        undoButton.disabled = !undoSnapshot;
+        undoButton.title = undoSnapshot ? "Undo last " + undoSnapshot.label : "No change to undo.";
+      }
+
+      function undoLastChange() {
+        if (!undoSnapshot) return;
+
+        const snapshot = undoSnapshot;
+        undoSnapshot = null;
+        output.value = snapshot.value;
+        output.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+        updateStats();
+        restoreEditorScroll({ top: snapshot.scrollTop });
+        updateUndoButton();
+        setStatus("Undo restored last " + snapshot.label, "ready");
+      }
+
+      function handleOutputInput() {
+        undoSnapshot = null;
+        repairKnownTemplateEncoding();
+        updateUndoButton();
+        updateStats();
+      }
+
+      function normalizeKnownTemplateEncoding(text) {
+        return String(text || "")
+          .replace(/媛쒕컻\?덉쭏洹몃９/g, "개발품질그룹")
+          .replace(/#\s*\[媛쒕컻\?덉쭏洹몃９\]/g, "# [개발품질그룹]")
+          .replace(/^###\s*\?\?\s*Slide\s+(\d+!?)/gm, "### ■ Slide $1")
+          .replace(/`###\s*\?\?\s*Slide\s+N`/g, "`### ■ Slide N`")
+          .replace(/`###\s*\?\?\s*Slide\s+1!`/g, "`### ■ Slide 1!`")
+          .replace(/Missing:\s*###\s*\?\?\s*Slide\s+N/g, "Missing: ### ■ Slide N");
+      }
+
+      function repairKnownTemplateEncoding() {
+        const repaired = normalizeKnownTemplateEncoding(output.value);
+
+        if (repaired === output.value) return false;
+
+        const selectionStart = output.selectionStart;
+        const selectionEnd = output.selectionEnd;
+        const scrollTop = output.scrollTop;
+
+        output.value = repaired;
+        output.setSelectionRange(
+          Math.min(selectionStart, repaired.length),
+          Math.min(selectionEnd, repaired.length)
+        );
+        output.scrollTop = scrollTop;
+        return true;
+      }
+
+      function updateQueueCount() {
+        queueCount.textContent = capturedItems.length.toLocaleString("ko-KR");
+      }
+
+      function getDocumentHeaderName() {
+        const headerMatch = output.value.match(/^#\s*\[([^\]]+)\]/m);
+
+        return headerMatch && headerMatch[1] ? headerMatch[1].trim() : "";
+      }
+
+      function normalizeDepartment(value) {
+        const normalized = String(value || "").trim();
+
+        return normalized || defaultDepartment;
+      }
+
+      function normalizeReportType(value) {
+        const normalized = String(value || "").trim();
+
+        return normalized || defaultReportType;
+      }
+
+      function getMetadataValue(name) {
+        const pattern = new RegExp("^\\*\\*" + escapeRegExp(name) + ":\\*\\*\\s*(.+)$", "mi");
+        const match = output.value.match(pattern);
+
+        return match && match[1] ? match[1].trim() : "";
+      }
+
+      function normalizeOptionalPptSource(value) {
+        const normalized = String(value || "").trim();
+
+        return normalized || "TBD";
+      }
+
+      function getPptSourceValue() {
+        return normalizeOptionalPptSource(getMetadataValue("Source(PPT url)") || getMetadataValue("Source(PPT)"));
+      }
+
+      function getSourceAudit() {
+        const value = getPptSourceValue();
+        const hasSource = Boolean(value) && !/^(TBD|N\/A|NA|-|\?)$/i.test(value);
+
+        return {
+          passed: hasSource,
+          summary: value
+        };
+      }
+
+      function isMissingValue(value) {
+        return !value || /^(TBD|N\/A|NA|-|\?)$/i.test(String(value).trim());
+      }
+
+      function getHeaderAudit() {
+        const department = normalizeDepartment(getDocumentHeaderName());
+        const reportType = normalizeReportType(getMetadataValue("Report Type"));
+        const failureMode = getMetadataValue("Failure Mode");
+        const hasReportType = !isMissingValue(reportType);
+        const hasFailureMode = !isMissingValue(failureMode);
+
+        return {
+          passed: Boolean(department) && hasReportType && hasFailureMode,
+          summary: "Department: " + department + "\nReport Type: " + (hasReportType ? reportType : "TBD") + "\nFailure Mode: " + (hasFailureMode ? failureMode : "TBD")
+        };
+      }
+
+      function getMetadataAudit() {
+        const requiredFields = ["Product", "Project", "Test Type", "Occurrence Date", "Author", "Method", "Status"];
+        const missing = requiredFields.filter((field) => {
+          const value = getMetadataValue(field);
+
+          return isMissingValue(value);
+        });
+        const status = getMetadataValue("Status");
+        const hasConfirmStatus = /^Confirm$/i.test(status);
+        const missingForDisplay = missing.filter((field) => field !== "Status");
+        const product = getMetadataValue("Product") || "TBD";
+        const project = getMetadataValue("Project") || "TBD";
+        const testType = getMetadataValue("Test Type") || "TBD";
+        const occurrenceDate = getMetadataValue("Occurrence Date") || "TBD";
+        const author = getMetadataValue("Author") || "TBD";
+        const detailLines = [
+          "Product: " + product,
+          "Project: " + project,
+          "Test Type: " + testType,
+          "Occurrence Date: " + occurrenceDate,
+          "Author: " + author
+        ];
+
+        if (missingForDisplay.length) {
+          detailLines.push("Need: " + missingForDisplay.join(", "));
+        }
+
+        return {
+          missing,
+          passed: missingForDisplay.length === 0 && hasConfirmStatus,
+          summary: detailLines.join("\n")
+        };
+      }
+
+      function updateStatusMeta() {
+        glossaryStatus.textContent = "Parser: " + (localParserOnline ? "online" : "offline") + " · Glossary: " + (qualityTeamGlossaryFileName || "none");
+        glossaryStatus.title = qualityTeamGlossaryFileName
+          ? "Loaded glossary file: " + qualityTeamGlossaryFileName
+          : "No quality_team_glossary_YYMMDD.md or quality_team_glossary.md file loaded.";
+      }
+
+      function updateGlossaryStatus() {
+        updateStatusMeta();
+      }
+
+      async function checkLocalParserService(options = {}) {
+        const quiet = Boolean(options.quiet);
+
+        try {
+          const response = await fetch(localParserBaseUrl + "/health", { cache: "no-store" });
+          const result = await response.json().catch(() => ({}));
+
+          localParserOnline = Boolean(response.ok && result.ok);
+        } catch (error) {
+          localParserOnline = false;
+        }
+
+        updateStatusMeta();
+        if (!localParserOnline && !quiet) {
+          setStatus("Launch OCR system first: start_ocr_app.cmd", "error");
+        }
+
+        return localParserOnline;
+      }
+
+      function getGlossaryCandidateFiles() {
+        const candidates = [];
+        const configuredFiles = Array.isArray(window.QUALITY_TEAM_GLOSSARY_FILES)
+          ? window.QUALITY_TEAM_GLOSSARY_FILES
+          : [];
+
+        configuredFiles.forEach((fileName) => {
+          if (fileName && !candidates.includes(fileName)) candidates.push(fileName);
+        });
+
+        const cursor = new Date();
+
+        for (let index = 0; index < 45; index += 1) {
+          const yy = String(cursor.getFullYear()).slice(-2);
+          const mm = String(cursor.getMonth() + 1).padStart(2, "0");
+          const dd = String(cursor.getDate()).padStart(2, "0");
+          const fileName = "quality_team_glossary_" + yy + mm + dd + ".md";
+
+          if (!candidates.includes(fileName)) candidates.push(fileName);
+          cursor.setDate(cursor.getDate() - 1);
+        }
+
+        if (!candidates.includes("quality_team_glossary.md")) {
+          candidates.push("quality_team_glossary.md");
+        }
+
+        return candidates;
+      }
+
+      function normalizeText(text) {
+        return String(text || "")
+          .replace(/\r\n/g, "\n")
+          .replace(/[ \t]+\n/g, "\n")
+          .replace(/\n{3,}/g, "\n\n")
+          .split("\n")
+          .map((line) => line.trim())
+          .join("\n")
+          .trim();
+      }
+
+      function cleanGlossaryTerm(term) {
+        return String(term || "")
+          .replace(/\*\*/g, "")
+          .replace(/`/g, "")
+          .replace(/<br\s*\/?>/gi, ",")
+          .replace(/\([^)]*\)/g, "")
+          .trim();
+      }
+
+      function extractGlossaryKeywords(glossaryText) {
+        const text = String(glossaryText || "").trim();
+        const keywords = new Set();
+
+        if (!text) return [];
+
+        text.split(/\r?\n/).forEach((line) => {
+          const trimmed = line.trim();
+
+          if (!trimmed.startsWith("|") || /^ *\|? *:?-{3,}/.test(trimmed)) return;
+
+          const cells = trimmed
+            .split("|")
+            .map((cell) => cell.trim())
+            .filter(Boolean);
+
+          if (cells.length < 2) return;
+
+          const headerLine = cells.join(" ").toLowerCase();
+          if (headerLine.includes("to") && (headerLine.includes("from") || headerLine.includes("유사어"))) return;
+
+          const candidateCells = cells.slice(1, Math.min(cells.length, 4));
+
+          candidateCells.forEach((cell) => {
+            const normalizedCell = cleanGlossaryTerm(cell);
+            if (normalizedCell.length >= 2) keywords.add(normalizedCell);
+
+            normalizedCell
+              .split(/[,，、]/)
+              .map(cleanGlossaryTerm)
+              .filter((term) => term.length >= 2)
+              .forEach((term) => keywords.add(term));
+          });
+        });
+
+        return [...keywords];
+      }
+
+      function getOcrNoisePenalty(text) {
+        const content = String(text || "");
+        const separationCount = (content.match(/[ㄱ-ㅎㅏ-ㅣ]/g) || []).length;
+        const replacementCount = (content.match(/\?/g) || []).length;
+        const mojibakeCount = (content.match(/[�]/g) || []).length;
+
+        return (separationCount * 0.5) + (replacementCount * 0.08) + (mojibakeCount * 0.5);
+      }
+
+      function getOcrKeywordScore(text, glossaryKeywords) {
+        const content = String(text || "");
+        let score = 0;
+        const keywords = Array.isArray(glossaryKeywords) ? glossaryKeywords : [];
+
+        keywords.forEach((keyword) => {
+          if (!keyword) return;
+
+          const regex = new RegExp(escapeRegExp(keyword), "gi");
+          const matches = content.match(regex);
+
+          if (matches) score += matches.length;
+        });
+
+        return score;
+      }
+
+      function getBestOcrSelection(textSet, glossaryText) {
+        const glossaryKeywords = extractGlossaryKeywords(glossaryText);
+        const engines = [
+          { key: "A", label: "Engine A - Grayscale", text: normalizeText(textSet && textSet.engineA) },
+          { key: "B", label: "Engine B - Binary Threshold", text: normalizeText(textSet && textSet.engineB) },
+          { key: "C", label: "Engine C - Inverted High Contrast", text: normalizeText(textSet && textSet.engineC) }
+        ];
+
+        engines.forEach((engine) => {
+          engine.score = getOcrKeywordScore(engine.text, glossaryKeywords);
+          engine.noisePenalty = getOcrNoisePenalty(engine.text);
+        });
+
+        const best = engines.reduce((winner, engine) => {
+          if (engine.score > winner.score) return engine;
+          if (engine.score === winner.score && engine.noisePenalty < winner.noisePenalty) return engine;
+          if (engine.score === winner.score && engine.noisePenalty === winner.noisePenalty && engine.text.length > winner.text.length) return engine;
+          return winner;
+        }, engines[0]);
+
+        return {
+          best,
+          engines,
+          glossaryKeywordCount: glossaryKeywords.length,
+          summary: glossaryKeywords.length
+            ? engines.map((engine) => engine.key + ": " + engine.score.toFixed(1) + " / noise " + engine.noisePenalty.toFixed(1)).join(", ")
+            : "Glossary not loaded; keyword scoring skipped"
+        };
+      }
+
+      function formatScoredOcrSelection(selection) {
+        const best = selection && selection.best ? selection.best : { key: "A", label: "Engine A - Grayscale", text: "" };
+
+        return [
+          "##### OCR Selected",
+          "",
+          "**Selected Engine:** " + best.key + " (" + best.label + ")",
+          "**Parser Score:** " + (selection && selection.summary ? selection.summary : "A: 0.0, B: 0.0, C: 0.0"),
+          "",
+          best.text || "_No readable text detected._"
+        ].join("\n");
+      }
+
+      function loadImageFromFile(file) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          const url = URL.createObjectURL(file);
+
+          image.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(image);
+          };
+
+          image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Image preview could not be loaded for OCR preprocessing."));
+          };
+
+          image.src = url;
+        });
+      }
+
+      function getCanvasAndCtx(image) {
+        const scale = Math.min(2, Math.max(1, 1800 / Math.max(image.naturalWidth || image.width, image.naturalHeight || image.height)));
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        const sourceWidth = image.naturalWidth || image.width;
+        const sourceHeight = image.naturalHeight || image.height;
+
+        canvas.width = Math.round(sourceWidth * scale);
+        canvas.height = Math.round(sourceHeight * scale);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+        return { canvas, context, width: canvas.width, height: canvas.height };
+      }
+
+      function canvasToBlob(canvas) {
+        return new Promise((resolve) => {
+          canvas.toBlob((blob) => resolve(blob || canvas.toDataURL("image/png")), "image/png");
+        });
+      }
+
+      async function processAlgorithmA(image) {
+        const { canvas, context, width, height } = getCanvasAndCtx(image);
+        const imageData = context.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        for (let index = 0; index < data.length; index += 4) {
+          const brightness = (0.299 * data[index]) + (0.587 * data[index + 1]) + (0.114 * data[index + 2]);
+          data[index] = brightness;
+          data[index + 1] = brightness;
+          data[index + 2] = brightness;
+        }
+
+        context.putImageData(imageData, 0, 0);
+        return canvasToBlob(canvas);
+      }
+
+      async function processAlgorithmB(image) {
+        const { canvas, context, width, height } = getCanvasAndCtx(image);
+        const imageData = context.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        for (let index = 0; index < data.length; index += 4) {
+          const gray = (0.299 * data[index]) + (0.587 * data[index + 1]) + (0.114 * data[index + 2]);
+          const binary = gray > 128 ? 255 : 0;
+          data[index] = binary;
+          data[index + 1] = binary;
+          data[index + 2] = binary;
+        }
+
+        context.putImageData(imageData, 0, 0);
+        return canvasToBlob(canvas);
+      }
+
+      async function processAlgorithmC(image) {
+        const { canvas, context, width, height } = getCanvasAndCtx(image);
+        const imageData = context.getImageData(0, 0, width, height);
+        const data = imageData.data;
+
+        for (let index = 0; index < data.length; index += 4) {
+          const red = ((255 - data[index]) - 128) * 2 + 128;
+          const green = ((255 - data[index + 1]) - 128) * 2 + 128;
+          const blue = ((255 - data[index + 2]) - 128) * 2 + 128;
+
+          data[index] = Math.min(255, Math.max(0, red));
+          data[index + 1] = Math.min(255, Math.max(0, green));
+          data[index + 2] = Math.min(255, Math.max(0, blue));
+        }
+
+        context.putImageData(imageData, 0, 0);
+        return canvasToBlob(canvas);
+      }
+
+      async function runMultiOcrPipeline(file, onProgress) {
+        const image = await loadImageFromFile(file);
+        const [engineAImage, engineBImage, engineCImage] = await Promise.all([
+          processAlgorithmA(image),
+          processAlgorithmB(image),
+          processAlgorithmC(image)
+        ]);
+        const engineProgress = { A: 0, B: 0, C: 0 };
+        const reportProgress = (engine, message) => {
+          if (!message) return;
+          if (typeof message.progress === "number") engineProgress[engine] = message.progress;
+
+          const totalProgress = (engineProgress.A + engineProgress.B + engineProgress.C) / 3;
+          if (typeof onProgress === "function") {
+            onProgress(totalProgress, "Engine " + engine + ": " + (message.status || "processing"));
+          }
+        };
+
+        const [engineAResult, engineBResult, engineCResult] = await Promise.all([
+          Tesseract.recognize(engineAImage, languages, {
+            ...getTesseractOptions(),
+            logger(message) {
+              reportProgress("A", message);
+            }
+          }),
+          Tesseract.recognize(engineBImage, languages, {
+            ...getTesseractOptions(),
+            logger(message) {
+              reportProgress("B", message);
+            }
+          }),
+          Tesseract.recognize(engineCImage, languages, {
+            ...getTesseractOptions(),
+            logger(message) {
+              reportProgress("C", message);
+            }
+          })
+        ]);
+
+        return {
+          engineA: engineAResult.data.text,
+          engineB: engineBResult.data.text,
+          engineC: engineCResult.data.text
+        };
+      }
+
+      function createPreprocessedImageBlob(file) {
+        return new Promise((resolve) => {
+          const image = new Image();
+          const url = URL.createObjectURL(file);
+
+          image.onload = () => {
+            try {
+              const scale = Math.min(2, Math.max(1, 1800 / Math.max(image.width, image.height)));
+              const canvas = document.createElement("canvas");
+              const context = canvas.getContext("2d", { willReadFrequently: true });
+
+              canvas.width = Math.round(image.width * scale);
+              canvas.height = Math.round(image.height * scale);
+              context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+              const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+              const data = imageData.data;
+
+              for (let index = 0; index < data.length; index += 4) {
+                const gray = (data[index] * 0.299) + (data[index + 1] * 0.587) + (data[index + 2] * 0.114);
+                const contrasted = Math.max(0, Math.min(255, ((gray - 128) * 1.35) + 128));
+                const value = contrasted > 178 ? 255 : contrasted < 92 ? 0 : contrasted;
+
+                data[index] = value;
+                data[index + 1] = value;
+                data[index + 2] = value;
+              }
+
+              context.putImageData(imageData, 0, 0);
+              canvas.toBlob((blob) => {
+                URL.revokeObjectURL(url);
+                resolve(blob || file);
+              }, "image/png");
+            } catch (error) {
+              URL.revokeObjectURL(url);
+              resolve(file);
+            }
+          };
+
+          image.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(file);
+          };
+
+          image.src = url;
+        });
+      }
+
+      function createSlideBlock(text, slideNumber, options = {}) {
+        const cleaned = normalizeText(text) || "_No readable text detected._";
+        const captureLine = options.captureId ? "<!-- capture-id: " + options.captureId + " -->\n\n" : "";
+
+        return slideTemplate
+          .replace("{NUMBER}", String(slideNumber))
+          .replace("{TEXT}", captureLine + cleaned);
+      }
+
+      function escapeRegExp(value) {
+        return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+
+      function getSlideHeaderRegex(flags = "g") {
+        return new RegExp("^###\\s+.*?(?:Slide|슬라이드)\\s+(\\d+!?)\\s*$", flags.includes("m") ? flags : flags + "m");
+      }
+
+      function getSlideBlockRegex(slideId) {
+        const escapedId = escapeRegExp(slideId);
+        return new RegExp("(^###\\s+.*?(?:Slide|슬라이드)\\s+" + escapedId + "\\s*$[\\s\\S]*?)(?=^###\\s+.*?(?:Slide|슬라이드)\\s+\\d+!?\\s*$|(?![\\s\\S]))", "m");
+      }
+
+      function getSlideSortNumber(slideId) {
+        return Number.parseInt(String(slideId).replace("!", ""), 10) || 0;
+      }
+
+      function appendMarkdown(text, slideNumber, options = {}) {
+        ensureDocumentHeader();
+        const block = createSlideBlock(text, slideNumber, options);
+        insertSlideBlockOrdered(block, slideNumber);
+        output.scrollTop = output.scrollHeight;
+        updateStats();
+      }
+
+      function upsertSlideMarkdown(text, slideNumber, options = {}) {
+        ensureDocumentHeader();
+        const block = createSlideBlock(text, slideNumber, options);
+        const slidePattern = getSlideBlockRegex(slideNumber);
+
+        if (slidePattern.test(output.value)) {
+          output.value = output.value.replace(slidePattern, block.trimEnd());
+        } else {
+          insertSlideBlockOrdered(block, slideNumber);
+        }
+
+        output.scrollTop = output.scrollHeight;
+        updateStats();
+      }
+
+      function getMarkdownRangeForCapture(job) {
+        if (!job) return null;
+
+        const content = output.value;
+        const captureId = job.captureId ? String(job.captureId) : "";
+        let anchorIndex = -1;
+
+        if (captureId) {
+          const capturePattern = new RegExp("<!--\\s*capture-id:\\s*" + escapeRegExp(captureId) + "\\s*-->");
+          const captureMatch = content.match(capturePattern);
+
+          if (captureMatch && typeof captureMatch.index === "number") {
+            anchorIndex = captureMatch.index;
+          }
+        }
+
+        if (anchorIndex < 0) {
+          const slidePattern = getSlideBlockRegex(job.number);
+          const slideMatch = content.match(slidePattern);
+
+          if (slideMatch && typeof slideMatch.index === "number") {
+            return {
+              start: slideMatch.index,
+              end: slideMatch.index + slideMatch[0].length
+            };
+          }
+
+          return null;
+        }
+
+        const beforeAnchor = content.slice(0, anchorIndex);
+        const headerMatches = [...beforeAnchor.matchAll(getSlideHeaderRegex("g"))];
+        const headerMatch = headerMatches[headerMatches.length - 1];
+        const start = headerMatch && typeof headerMatch.index === "number" ? headerMatch.index : anchorIndex;
+        const afterAnchor = content.slice(anchorIndex);
+        const nextHeaderMatch = afterAnchor.slice(1).match(getSlideHeaderRegex("m"));
+        const end = nextHeaderMatch && typeof nextHeaderMatch.index === "number"
+          ? anchorIndex + 1 + nextHeaderMatch.index
+          : content.length;
+
+        return { start, end };
+      }
+
+      function scrollOutputToIndex(index) {
+        const before = output.value.slice(0, index);
+        const lineNumber = before.split("\n").length;
+        const computed = window.getComputedStyle(output);
+        const lineHeight = Number.parseFloat(computed.lineHeight) || 18;
+
+        output.scrollTop = Math.max(0, (lineNumber - 3) * lineHeight);
+      }
+
+      function jumpToMarkdownForCapture(job) {
+        const range = getMarkdownRangeForCapture(job);
+
+        if (!range) {
+          setStatus("Slide " + (job ? job.number : "") + " Markdown not found yet", "error");
+          return false;
+        }
+
+        output.focus();
+        output.setSelectionRange(range.start, range.start);
+        scrollOutputToIndex(range.start);
+        setStatus("Slide " + job.number + " Markdown located", "ready");
+        return true;
+      }
+
+      function insertSlideBlockOrdered(block, slideNumber) {
+        const targetNumber = getSlideSortNumber(slideNumber);
+        const slideMatches = [...output.value.matchAll(getSlideHeaderRegex("g"))];
+
+        for (const match of slideMatches) {
+          if (getSlideSortNumber(match[1]) > targetNumber) {
+            const before = output.value.slice(0, match.index).trimEnd();
+            const after = output.value.slice(match.index).trimStart();
+
+            output.value = before + "\n\n" + block.trimEnd() + "\n\n" + after;
+            return;
+          }
+        }
+
+        output.value += (output.value.trim() ? "\n\n" : "") + block;
+      }
+
+      function buildCodexRefinePrompt(rawText, slideNumber) {
+        return [
+          "[Role]",
+          "You are a senior preprocessing assistant for Quality Team RAG ingestion. You understand slide images visually and use OCR text only as supporting context.",
+          "",
+          "[Task]",
+          "Analyze the parser-captured slide image included in this prompt package directly with Vision. Use the parser-selected OCR text below only as a reference. Repair OCR noise, understand the visual layout, identify tables/boxes/arrows, enforce the Quality Team glossary, and synthesize RAG-ready Markdown.",
+          "",
+          "[Rules]",
+          "1. Document header:",
+          "   Start with the following metadata format. Use the bracket heading as Department, `Report Type` as Main classification, and `Failure Mode` as failure classification.",
+          "   # [개발품질그룹]",
+          "   * **Report Type:** Reliability Failure Report",
+          "   * **Failure Mode:** Sub topic or failure mode",
+          "   * **Source(PPT url):** Required PPT EDM url or original PPT reference.",
+          "   * **Author:** Name",
+          "   * **Method:** Final adopted extraction/correction method",
+          "   * **Status:** Confirm",
+          "   ---",
+          "   The refined Codex output is a confirmed document, so set metadata Status to `Confirm`, not `Review`.",
+          "   Method must name only the final adopted method. Review drafts may contain multiple OCR/correction candidates, but the Confirm output should keep one selected method for later accuracy and adoption-rate tracking.",
+          "",
+          "2. Slide identifier:",
+          "   Preserve or create the slide header as `### ■ Slide " + slideNumber + "` and end the slide block with `---`.",
+          "   Do not put `Source(PPT url)` inside individual slide blocks. Source is global metadata only.",
+          "",
+          "3. Vision-first interpretation:",
+          "   The included parser-captured slide image is the primary source. Read text boxes, table cells, arrows, labels, title hierarchy, and relative layout as a human reviewer would.",
+          "   The selected OCR text is only a hint. If image evidence contradicts OCR text, trust the image.",
+          "   If the copied rich package or exported HTML package does not show the captured images, report that image ingestion failed instead of relying on OCR text only.",
+          "",
+          "4. Preserve the original language mix:",
+          "   Do not translate Korean, English, Chinese characters, abbreviations, product names, model names, test names, proper nouns, or technical terms. Keep the original mixed-language wording unless an OCR error is unambiguous.",
+          "",
+          "5. Quality team glossary enforcement:",
+          "   If a Quality Team Glossary section is provided below, treat it as the authoritative terminology mapping. When a source term, synonym, field slang, or OCR typo set matches the glossary context, force-replace it with the specified standard term and exact capitalization. Do not generalize glossary terms into ordinary nouns.",
+          "",
+          "6. Image manifest verification:",
+          "   Before refinement, verify that the visible/readable parser-captured image for the target slide is present in the Captured Slide Images section.",
+          "   Match images by `capture-id` metadata first, not by Slide number alone. If the expected target image is missing or unreadable, do not refine the Markdown. Return only `IMAGE_INGESTION_FAILED` followed by the missing capture-id and Slide number.",
+          "",
+          "7. OCR scoring context:",
+          "   The browser parser already scored Engine A/B/C and selected the best single OCR text. Do not ask for the discarded OCR engines unless the selected text and image are insufficient.",
+          "   Correct only obvious OCR errors, broken spacing, duplicated noise, and fragmented characters when the intended text is clear from the image or glossary context. If uncertain, preserve the original text instead of guessing.",
+          "",
+          "8. Table conversion:",
+          "   Convert quantitative values, comparison metrics, test conditions, key benefits, and repeated item/value pairs into Markdown tables using `| Item | Value | Status |` where appropriate.",
+          "",
+          "9. Output only Markdown:",
+          "   Do not add greetings, explanations, comments, or work reports. Return only the cleaned Markdown body.",
+          "",
+          "---",
+          "[Usage]",
+          "Open the saved HTML Vision Package and send that package to Codex. The package includes parser-captured slide images. If temperature is configurable, use a value close to 0.0 for consistent formatting.",
+          "",
+          "[Target Slide]",
+          "Slide " + slideNumber,
+          "",
+          "[INPUT: PARSER-SELECTED OCR CONTEXT]",
+          rawText || "(empty OCR result)"
+        ].join("\n");
+      }
+
+      function buildCodexMarkdownRefinePrompt(markdownText) {
+        return [
+          "[Role]",
+          "You are a senior preprocessing assistant for Quality Team RAG ingestion. You understand slide images visually and use OCR Markdown only as supporting context.",
+          "",
+          "[Task]",
+          "The Markdown below is a draft generated by a browser OCR parser from one or more presentation slide images. The parser already scored Engine A/B/C and retained the best OCR context for each slide. Analyze the included parser-captured slide images directly with Vision, use the Markdown only as reference, clean OCR noise, repair obvious broken context, enforce the glossary, and improve the structure for RAG ingestion.",
+          "",
+          "[Rules]",
+          "1. Keep the document header format beginning with a department heading such as `# [개발품질그룹]` unless the draft already has a more specific department.",
+          "2. Set document metadata `**Status:** Confirm`. Replace `Review` with `Confirm` in the refined output.",
+          "   Use the first heading bracket as Department, `**Report Type:**` as Main classification, and `**Failure Mode:**` as failure classification.",
+          "   The refined document must include these reliability failure report metadata fields: `Report Type`, `Product`, `Project`, `Failure Mode`, `Test Type`, `Occurrence Date`, `Author`, `Method`, and `Status`.",
+          "   Method must record only the final adopted extraction/correction method. If the draft lists multiple OCR passes or review candidates, choose the method actually used for the confirmed Markdown and remove unselected method candidates from the Method field.",
+          "   `Source(PPT url)` is required global metadata for later source matching. Preserve it in the document metadata and do not duplicate it inside slide blocks.",
+          "3. Keep each slide header in the form `### ■ Slide N`. Preserve the slide order and preserve manual slide suffixes such as `### ■ Slide 1!` when present. Remove any `Source(PPT url)` lines that appear inside individual slide blocks.",
+          "4. Preserve the original language mix. Do not translate Korean, English, Chinese characters, abbreviations, product names, model names, test names, proper nouns, or technical terms unless the OCR error is unambiguous.",
+          "5. If a Quality Team Glossary section is provided below, treat it as the authoritative terminology mapping. When a source term, synonym, field slang, or OCR typo set matches the glossary context, force-replace it with the specified standard term and exact capitalization. Do not generalize glossary terms into ordinary nouns.",
+          "6. Image manifest verification:",
+          "   Before refinement, verify that the number of visible/readable parser-captured images matches the `Expected captured image count` in the Captured Slide Images section.",
+          "   Verify that every `Expected capture-id list` item is present. Match images by `capture-id` metadata first, not by Slide number alone. If any image is missing or unreadable, do not refine the Markdown. Return only `IMAGE_INGESTION_FAILED` followed by the missing capture-id(s) and Slide number(s).",
+          "7. Vision-first synthesis: use the included parser-captured slide images as the primary source. Read visual layout, title hierarchy, text boxes, tables, arrows, and labels directly. Use the parser-selected OCR text only as context. If image evidence contradicts OCR text, trust the image. For multiple images, match them to Markdown slide blocks by `capture-id` first; Slide number is only a display/order hint. If the copied rich package or exported HTML package does not show the captured images, report that image ingestion failed instead of relying on OCR text only.",
+          "8. Convert quantitative values, comparison metrics, test conditions, key benefits, and repeated item/value pairs into Markdown tables using `| Item | Value | Status |` where appropriate.",
+          "9. Remove meaningless OCR noise, but do not remove potentially meaningful technical symbols, units, labels, model codes, or mixed-language terms.",
+          "10. Do not add greetings, explanations, comments, or work reports. Return only the cleaned Markdown body.",
+          "",
+          "[Markdown Draft To Clean]",
+          markdownText || "(empty Markdown)"
+        ].join("\n");
+      }
+
+      async function loadQualityTeamGlossary() {
+        if (qualityTeamGlossaryText) return qualityTeamGlossaryText;
+
+        const candidates = getGlossaryCandidateFiles();
+
+        for (const fileName of candidates) {
+          try {
+            const response = await fetch("./" + fileName, { cache: "no-store" });
+
+            if (!response.ok) continue;
+
+            const loadedText = (await response.text()).trim();
+
+            if (!loadedText) continue;
+
+            glossaryLoadAttempted = true;
+            qualityTeamGlossaryText = loadedText;
+            qualityTeamGlossaryFileName = fileName;
+            updateGlossaryStatus();
+            return qualityTeamGlossaryText;
+          } catch (error) {
+            // Missing local glossary files are optional.
+          }
+        }
+
+        updateGlossaryStatus();
+        return "";
+      }
+
+      function attachQualityTeamGlossary(prompt, glossaryText) {
+        if (!glossaryText) return prompt;
+
+        const glossarySection = [
+          "--------------------------------------------------------------------------------",
+          "[Quality Team Glossary Enforcement]",
+          "The following glossary is authoritative. If the input contains a From term, synonym, field slang, or OCR typo set from this glossary, rewrite it using the specified To term exactly, including capitalization and spacing.",
+          "",
+          glossaryText,
+          "--------------------------------------------------------------------------------",
+          ""
+        ].join("\n");
+
+        if (prompt.includes("[INPUT: PARSER-SELECTED OCR CONTEXT]")) {
+          return prompt.replace("[INPUT: PARSER-SELECTED OCR CONTEXT]", glossarySection + "[INPUT: PARSER-SELECTED OCR CONTEXT]");
+        }
+
+        if (prompt.includes("[INPUT: MULTI-PIPELINE RAW TEXTSET]")) {
+          return prompt.replace("[INPUT: MULTI-PIPELINE RAW TEXTSET]", glossarySection + "[INPUT: MULTI-PIPELINE RAW TEXTSET]");
+        }
+
+        if (prompt.includes("[Raw OCR Text To Clean]")) {
+          return prompt.replace("[Raw OCR Text To Clean]", glossarySection + "[Raw OCR Text To Clean]");
+        }
+
+        if (prompt.includes("[Markdown Draft To Clean]")) {
+          return prompt.replace("[Markdown Draft To Clean]", glossarySection + "[Markdown Draft To Clean]");
+        }
+
+        return [prompt, "", glossarySection].join("\n");
+      }
+
+      function escapeHtml(value) {
+        return String(value || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function fileToDataUrl(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+
+          reader.onload = () => resolve(String(reader.result || ""));
+          reader.onerror = () => reject(new Error("Captured image could not be encoded."));
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function getCurrentMarkdownSlideIds() {
+        return parseSlideBlocks(output.value)
+          .map((slide) => String(slide.number))
+          .filter(Boolean);
+      }
+
+      function getCurrentMarkdownCaptureIds() {
+        const ids = [];
+        const pattern = /<!--\s*capture-id:\s*([a-zA-Z0-9_-]+)\s*-->/g;
+        let match;
+
+        while ((match = pattern.exec(output.value)) !== null) {
+          ids.push(match[1]);
+        }
+
+        return ids;
+      }
+
+      async function getCapturedImagePayloads() {
+        const currentCaptureIds = new Set(getCurrentMarkdownCaptureIds());
+        const hasCaptureScope = currentCaptureIds.size > 0;
+        const orderedJobs = [...capturedItems]
+          .filter((job) => !hasCaptureScope || currentCaptureIds.has(String(job.captureId)))
+          .sort((a, b) => Number(a.number) - Number(b.number));
+        const payloads = [];
+
+        for (const job of orderedJobs) {
+          if (!job || !job.file) continue;
+
+          payloads.push({
+            slide: job.number,
+            captureId: job.captureId || "",
+            name: job.file.name || "pasted-image.png",
+            type: job.file.type || "image/png",
+            dataUrl: await fileToDataUrl(job.file)
+          });
+        }
+
+        return payloads;
+      }
+
+      function getCapturePackageManifest(imagePayloads) {
+        const markdownCaptureIds = getCurrentMarkdownCaptureIds();
+        const embeddedCaptureIds = imagePayloads.map((image) => image.captureId).filter(Boolean);
+        const expectedCaptureIds = markdownCaptureIds.length ? markdownCaptureIds : embeddedCaptureIds;
+        const embeddedSet = new Set(embeddedCaptureIds);
+
+        return {
+          expectedCount: expectedCaptureIds.length,
+          embeddedCount: imagePayloads.length,
+          expectedCaptureIds,
+          embeddedCaptureIds,
+          missingCaptureIds: expectedCaptureIds.filter((captureId) => !embeddedSet.has(captureId))
+        };
+      }
+
+      function appendCapturedImagesToPrompt(prompt, imagePayloads) {
+        const manifest = getCapturePackageManifest(imagePayloads);
+
+        if (!imagePayloads.length) {
+          return prompt + "\n\n[Captured Slide Images]\nExpected captured image count: " + manifest.expectedCount + "\nEmbedded image count: 0\nExpected capture-id list: " + (manifest.expectedCaptureIds.join(", ") || "none") + "\nNo captured images are currently stored in the parser. Return `IMAGE_INGESTION_FAILED` if any expected capture-id is listed above.";
+        }
+
+        const slideList = imagePayloads.map((image) => "Slide " + image.slide).join(", ");
+        const captureList = manifest.expectedCaptureIds.join(", ");
+        const missingList = manifest.missingCaptureIds.join(", ");
+        const lines = [
+          prompt,
+          "",
+          "[Captured Slide Images]",
+          "Expected captured image count: " + manifest.expectedCount,
+          "Embedded image count: " + manifest.embeddedCount,
+          "Expected slide image list: " + slideList,
+          "Expected capture-id list: " + (captureList || "none"),
+          "Missing capture-id list: " + (missingList || "none"),
+          "Package scope: captured images are matched by capture-id metadata embedded in the current Markdown draft, not by Slide number alone.",
+          "Before refinement, verify that every expected capture-id is visible/readable and that Embedded image count equals Expected captured image count. If any expected image is missing, do not refine the Markdown. Return `IMAGE_INGESTION_FAILED` and list the missing capture-id(s).",
+          "Captured images are included in the rich HTML clipboard/package, not in this plain-text fallback. Use the pasted/packaged images as the Vision source. Match each image to the Markdown slide block by capture-id first; Slide number is only a display/order hint. If images are not visible after paste, use the saved HTML package.",
+          ""
+        ];
+
+        imagePayloads.forEach((image) => {
+          lines.push("### Image for Slide " + image.slide);
+          lines.push("Capture ID: " + (image.captureId || "none"));
+          lines.push("Filename: " + image.name);
+          lines.push("MIME: " + image.type);
+          lines.push("Image data: included in HTML package only");
+          lines.push("");
+        });
+
+        return lines.join("\n");
+      }
+
+      function buildCapturedImagesHtml(prompt, imagePayloads) {
+        const manifest = getCapturePackageManifest(imagePayloads);
+        const slideList = imagePayloads.map((image) => "Slide " + image.slide).join(", ");
+        const captureList = manifest.expectedCaptureIds.join(", ");
+        const missingList = manifest.missingCaptureIds.join(", ");
+        const blocks = imagePayloads.map((image) => {
+          return [
+            "<section data-slide=\"" + escapeHtml(image.slide) + "\" data-capture-id=\"" + escapeHtml(image.captureId || "") + "\">",
+            "<h3>Image for Slide " + escapeHtml(image.slide) + "</h3>",
+            "<p>Capture ID: " + escapeHtml(image.captureId || "none") + "</p>",
+            "<p>" + escapeHtml(image.name) + " - " + escapeHtml(image.type) + "</p>",
+            "<img alt=\"Slide " + escapeHtml(image.slide) + "\" src=\"" + image.dataUrl + "\" style=\"max-width:960px;width:100%;height:auto;border:1px solid #d5deea;\">",
+            "</section>"
+          ].join("");
+        }).join("");
+
+        return [
+          "<!doctype html>",
+          "<html lang=\"ko\">",
+          "<head>",
+          "<meta charset=\"utf-8\">",
+          "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+          "<title>Codex Vision Package</title>",
+          "<style>",
+          "body{margin:24px;font-family:Apple SD Gothic Neo,Malgun Gothic,Segoe UI,sans-serif;color:#172033;background:#f8fafc;}",
+          "pre{white-space:pre-wrap;font-family:Cascadia Mono,Consolas,monospace;background:#fff;border:1px solid #d5deea;border-radius:8px;padding:16px;line-height:1.5;}",
+          "section{margin:18px 0;padding:16px;background:#fff;border:1px solid #d5deea;border-radius:8px;}",
+          "h1,h2,h3{margin:0 0 10px;}p{color:#64748b;margin:0 0 12px;}",
+          "</style>",
+          "</head>",
+          "<body>",
+          "<h1>Codex Vision Package</h1>",
+          "<section>",
+          "<h2>Image Manifest</h2>",
+          "<p>Expected captured image count: " + escapeHtml(manifest.expectedCount) + "</p>",
+          "<p>Embedded image count: " + escapeHtml(manifest.embeddedCount) + "</p>",
+          "<p>Expected slide image list: " + escapeHtml(slideList || "none") + "</p>",
+          "<p>Expected capture-id list: " + escapeHtml(captureList || "none") + "</p>",
+          "<p>Missing capture-id list: " + escapeHtml(missingList || "none") + "</p>",
+          "<p>Package scope: captured images are matched by capture-id metadata embedded in the current Markdown draft, not by Slide number alone.</p>",
+          "<p>Before refinement, verify that every expected capture-id below is visible/readable and that Embedded image count equals Expected captured image count. If any expected image is missing, return IMAGE_INGESTION_FAILED and list the missing capture-id(s).</p>",
+          "</section>",
+          "<div>",
+          "<pre style=\"white-space:pre-wrap;font-family:monospace;\">",
+          escapeHtml(prompt),
+          "</pre>",
+          "<h2>Captured Slide Images</h2>",
+          blocks || "<p>No captured images are currently stored in the parser.</p>",
+          "</div>",
+          "</body>",
+          "</html>"
+        ].join("");
+      }
+
+      function flashCodexButton(label, tone) {
+        const original = "Codex 보정 보내기";
+
+        window.clearTimeout(codexButtonTimer);
+        sendCodexPackageButton.textContent = label;
+        sendCodexPackageButton.classList.remove("is-action", "is-success", "is-error");
+
+        if (tone) {
+          sendCodexPackageButton.classList.add("is-" + tone);
+        }
+
+        codexButtonTimer = window.setTimeout(() => {
+          sendCodexPackageButton.textContent = original;
+          sendCodexPackageButton.classList.remove("is-action", "is-success", "is-error");
+        }, 1400);
+      }
+
+      function flashSavePathButton(label) {
+        const original = "Save path";
+
+        window.clearTimeout(codexPathButtonTimer);
+        copySavePathButton.textContent = label;
+
+        codexPathButtonTimer = window.setTimeout(() => {
+          copySavePathButton.textContent = original;
+        }, 1400);
+      }
+
+      async function copyCodexSavePath() {
+        try {
+          await navigator.clipboard.writeText(codexTargetSavePath);
+          setStatus("Save path copied", "ready");
+          flashSavePathButton("Copied");
+        } catch (error) {
+          setStatus("Save path: " + codexTargetSavePath, "ready");
+          flashSavePathButton("Path shown");
+        }
+      }
+
+      function validateMarkdownAndToggle() {
+        repairKnownTemplateEncoding();
+        const content = output.value;
+        const hasContent = Boolean(content.trim());
+        const headerName = getDocumentHeaderName();
+        const headerAudit = getHeaderAudit();
+        const sourceAudit = getSourceAudit();
+        const metadataAudit = getMetadataAudit();
+        const hasHeader = Boolean(headerName);
+        const checks = [
+          { element: badgeHeader, passed: hasHeader && headerAudit.passed, required: true, value: hasHeader ? headerAudit.summary : "Missing: document header" },
+          { element: badgeSource, passed: sourceAudit.passed, required: true, value: sourceAudit.summary },
+          { element: badgeMetadata, passed: metadataAudit.passed, required: true, value: metadataAudit.summary }
+        ];
+        const isValid = checks.every((check) => !check.required || check.passed);
+
+        updateDocumentStatusPill();
+        updateRequiredInputHints();
+
+        if (!hasContent) {
+          checks.forEach(resetRuleCard);
+          downloadButton.disabled = true;
+          downloadButton.title = "Waiting for OCR input.";
+          finalStatusText.textContent = "STANDBY";
+          finalStatusDetail.textContent = "Waiting for OCR input.";
+          finalStatusCard.className = "qa-summary";
+          return;
+        }
+
+        checks.forEach(updateRuleCard);
+
+        downloadButton.disabled = !isValid;
+        downloadButton.title = isValid
+          ? "Download is enabled."
+          : "Locked until Header, Source, and Metadata rules pass.";
+        finalStatusText.textContent = isValid ? "PASS: Ready" : "FAIL: Locked";
+        finalStatusDetail.textContent = isValid
+          ? "Header, Source, and Metadata rules passed."
+          : summarizeGateFailure(checks);
+        finalStatusCard.className = "qa-summary " + (isValid ? "pass" : "fail");
+      }
+
+      function updateDocumentStatusPill() {
+        const status = getMetadataValue("Status") || "Review";
+        const isConfirm = /^Confirm$/i.test(status);
+
+        docStatusPill.textContent = isConfirm ? "Confirm" : "Review";
+        docStatusPill.className = "doc-status-pill " + (isConfirm ? "confirm" : "review");
+      }
+
+      function initializeRepairInputs() {
+        repairInputs.forEach((entry) => {
+          entry.input.dataset.defaultPlaceholder = entry.input.getAttribute("placeholder") || entry.label;
+        });
+      }
+
+      function setRequiredInputHint(input, required, label) {
+        if (!input) return;
+
+        if (required) {
+          input.classList.add("input-required");
+          return;
+        }
+
+        input.classList.remove("input-required");
+      }
+
+      function updateRequiredInputHints() {
+        setRequiredInputHint(headerDepartmentInput, isMissingValue(getDocumentHeaderName()), "Department");
+        setRequiredInputHint(headerReportTypeInput, isMissingValue(getMetadataValue("Report Type")), "Report Type");
+        setRequiredInputHint(headerFailureModeInput, isMissingValue(getMetadataValue("Failure Mode")), "Failure Mode");
+        setRequiredInputHint(sourcePatchInput, isMissingValue(getPptSourceValue()), "PPT EDM url");
+        setRequiredInputHint(metaProductInput, isMissingValue(getMetadataValue("Product")), "Product");
+        setRequiredInputHint(metaProjectInput, isMissingValue(getMetadataValue("Project")), "Project");
+        setRequiredInputHint(metaTestTypeInput, isMissingValue(getMetadataValue("Test Type")), "Test Type");
+        setRequiredInputHint(metaOccurrenceDateInput, isMissingValue(getMetadataValue("Occurrence Date")), "Occurrence Date");
+        setRequiredInputHint(metaAuthorInput, isMissingValue(getMetadataValue("Author")), "Author");
+      }
+
+      function summarizeGateFailure(checks) {
+        const failed = checks.filter((check) => check.required && !check.passed);
+
+        if (!failed.length) return "Fix missing rules to enable Download.";
+
+        return "Fix " + failed.length + ": " + failed.map((check) => {
+          const title = check.element.querySelector(".rule-title");
+
+          return title ? title.textContent.replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, "").replace(/\*/g, "").trim() : "Rule";
+        }).join(", ");
+      }
+
+      function parseSlideBlocks(content) {
+        const matches = [...content.matchAll(/^###\s+.*?(?:Slide|슬라이드)\s+(\d+!?)\s*$([\s\S]*?)(?=^###\s+.*?(?:Slide|슬라이드)\s+\d+!?\s*$|(?![\s\S]))/gm)];
+
+        return matches.map((match) => {
+          const body = match[2] || "";
+          const tableMatch = body.match(/\|[^\n]*\|[^\n]*\n\|[ :\-\|]+\|/);
+
+          return {
+            number: match[1],
+            body,
+            hasTable: Boolean(tableMatch),
+            tablePreview: tableMatch ? tableMatch[0].split("\n").slice(0, 2).join("\n") : ""
+          };
+        });
+      }
+
+      function summarizeSlides(slides) {
+        return slides
+          .map((slide) => "Slide " + slide.number)
+          .join("\n");
+      }
+
+      function updateRuleCard(check) {
+        const state = check.element.querySelector("[data-rule-state]");
+        const value = check.element.querySelector("[data-rule-value]");
+        const className = check.passed ? "rule-pass" : check.required ? "rule-fail" : "rule-neutral";
+
+        check.element.className = "rule-badge " + className;
+        state.textContent = check.passed ? "PASS" : check.required ? "FAIL" : "CHECK";
+
+        value.textContent = check.value;
+      }
+
+      function resetRuleCard(check) {
+        const state = check.element.querySelector("[data-rule-state]");
+        const value = check.element.querySelector("[data-rule-value]");
+
+        check.element.className = "rule-badge rule-neutral";
+        state.textContent = "CHECK";
+        value.textContent = "No data";
+      }
+
+      function ensureDocumentHeader() {
+        if (!hasDocumentHeader()) {
+          output.value = documentHeaderTemplate + (output.value.trim() ? "\n\n" + output.value : "");
+        }
+
+        removeDeprecatedSourceMetadata();
+        removeSlideSourceMetadata();
+      }
+
+      function hasDocumentHeader() {
+        return /^#\s*\[[^\]]+\]/m.test(output.value) || output.value.includes("# [신뢰성 소스]");
+      }
+
+      function insertDocumentHeader() {
+        const snapshot = getEditorScrollSnapshot();
+        rememberUndo("Header insert");
+        ensureDocumentHeader();
+        finishManualUpdate(snapshot);
+      }
+
+      function applyHeaderDepartmentPatch() {
+        const snapshot = getEditorScrollSnapshot();
+        const department = normalizeDepartment(headerDepartmentInput.value || getDocumentHeaderName());
+
+        rememberUndo("Header department update");
+        ensureDocumentHeader();
+
+        if (/^#\s*\[[^\]]+\].*$/m.test(output.value)) {
+          output.value = output.value.replace(/^#\s*\[[^\]]+\].*$/m, "# [" + department + "]");
+        } else {
+          output.value = "# [" + department + "]\n\n" + output.value.trimStart();
+        }
+
+        setStatus("Header department updated", "ready");
+
+        finishManualUpdate(snapshot);
+      }
+
+      function applyHeaderReportTypePatch() {
+        const snapshot = getEditorScrollSnapshot();
+        const reportType = normalizeReportType(headerReportTypeInput.value || getMetadataValue("Report Type"));
+
+        rememberUndo("Header report type update");
+        ensureDocumentHeader();
+        upsertMetadataValue("Report Type", reportType);
+        setStatus("Header report type updated", "ready");
+
+        finishManualUpdate(snapshot);
+      }
+
+      function applyHeaderFailureModePatch() {
+        const snapshot = getEditorScrollSnapshot();
+        const failureMode = headerFailureModeInput.value.trim() || getMetadataValue("Failure Mode") || "TBD";
+
+        rememberUndo("Header failure mode update");
+        ensureDocumentHeader();
+        upsertMetadataValue("Failure Mode", failureMode);
+        setStatus("Header failure mode updated", "ready");
+
+        finishManualUpdate(snapshot);
+      }
+
+      function applyMetadataPatch(fieldName, inputElement) {
+        const snapshot = getEditorScrollSnapshot();
+        const value = inputElement.value.trim() || getMetadataValue(fieldName) || "TBD";
+
+        rememberUndo(fieldName + " update");
+        ensureDocumentHeader();
+        upsertMetadataValue(fieldName, value);
+        setStatus(fieldName + " updated", "ready");
+
+        finishManualUpdate(snapshot);
+      }
+
+      function applySourcePatch() {
+        const snapshot = getEditorScrollSnapshot();
+        const pptSource = normalizeOptionalPptSource(sourcePatchInput.value);
+
+        rememberUndo("Source update");
+        ensureDocumentHeader();
+        upsertMetadataValue("Source(PPT url)", pptSource, ["Source(PPT)"]);
+        setStatus("Source(PPT url) updated", "ready");
+
+        finishManualUpdate(snapshot);
+      }
+
+      function removeDeprecatedSourceMetadata() {
+        output.value = output.value.replace(/^\*\*Source:\*\*.*(?:\n|$)/gmi, "");
+      }
+
+      function removeSlideSourceMetadata() {
+        const slideBlockPattern = /(^###\s+.*?Slide\s+\d+!?\s*$)([\s\S]*?)(?=^###\s+.*?Slide\s+\d+!?\s*$|(?![\s\S]))/gm;
+
+        output.value = output.value.replace(slideBlockPattern, (match, header, body) => {
+          const cleanedBody = body
+            .replace(/^\s*\*\*Source\(PPT(?: url)?\):\*\*.*(?:\n|$)/gmi, "")
+            .replace(/\n{3,}/g, "\n\n");
+
+          return header + cleanedBody;
+        });
+      }
+
+      function upsertMetadataValue(name, value, legacyNames = []) {
+        const line = "**" + name + ":** " + value;
+        const fieldNames = [name].concat(legacyNames);
+        const existingPattern = new RegExp("^\\*\\*(?:" + fieldNames.map(escapeRegExp).join("|") + "):\\*\\*.*$", "mi");
+
+        if (existingPattern.test(output.value)) {
+          output.value = output.value.replace(existingPattern, () => line);
+          return;
+        }
+
+        if (name === "Report Type" && /^#\s*\[[^\]]+\].*$/m.test(output.value)) {
+          output.value = output.value.replace(/^#\s*\[[^\]]+\].*$/m, (match) => match + "\n\n" + line);
+          return;
+        }
+
+        if (name === "Product" && /^\*\*Report Type:\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Report Type:\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        if (name === "Project" && /^\*\*Product:\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Product:\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        if (name === "Failure Mode" && /^\*\*Project:\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Project:\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        if (name === "Test Type" && /^\*\*Failure Mode:\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Failure Mode:\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        if (name === "Occurrence Date" && /^\*\*Test Type:\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Test Type:\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        if (name === "Source(PPT url)" && /^\*\*Occurrence Date:\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Occurrence Date:\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        if (name === "Author" && /^\*\*Source\(PPT url\):\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Source\(PPT url\):\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        if (name === "Method" && /^\*\*Author:\*\*.*$/mi.test(output.value)) {
+          output.value = output.value.replace(/^\*\*Author:\*\*.*$/mi, (match) => match + "\n" + line);
+          return;
+        }
+
+        output.value = output.value.replace(/^---\s*$/m, line + "\n\n---");
+      }
+
+      function insertTableTemplate() {
+        const snapshot = getEditorScrollSnapshot();
+        rememberUndo("Table insert");
+        ensureDocumentHeader();
+
+        const start = output.selectionStart;
+        const end = output.selectionEnd;
+        const before = output.value.slice(0, start);
+        const after = output.value.slice(end);
+        const prefix = before.endsWith("\n") || before.length === 0 ? "" : "\n\n";
+        const suffix = after.startsWith("\n") || after.length === 0 ? "" : "\n\n";
+
+        output.value = before + prefix + tableTemplate + suffix + after;
+        const cursor = (before + prefix + tableTemplate).length;
+        output.setSelectionRange(cursor, cursor);
+        finishManualUpdate(snapshot);
+      }
+
+      function createQueueItem(job) {
+        const item = document.createElement("div");
+        item.className = "queue-item";
+        item.tabIndex = 0;
+        item.setAttribute("role", "button");
+        item.setAttribute("aria-label", "Slide " + job.number + " preview and Markdown jump");
+
+        const image = document.createElement("img");
+        image.alt = "Slide " + job.number + " preview";
+        image.src = URL.createObjectURL(job.file);
+        image.onload = () => URL.revokeObjectURL(image.src);
+
+        const text = document.createElement("div");
+        const name = document.createElement("strong");
+        const meta = document.createElement("span");
+        const actions = document.createElement("div");
+        const rerunButton = document.createElement("button");
+        const removeButton = document.createElement("button");
+
+        name.textContent = "Slide " + job.number + " · " + (job.file.name || "pasted image");
+        meta.textContent = Math.max(1, Math.round(job.file.size / 1024)).toLocaleString("ko-KR") + " KB · queued";
+        actions.className = "queue-actions";
+        rerunButton.type = "button";
+        rerunButton.className = "secondary compact";
+        rerunButton.textContent = "재전송";
+        removeButton.type = "button";
+        removeButton.className = "danger compact";
+        removeButton.textContent = "제거";
+
+        text.append(name, meta);
+        actions.append(rerunButton, removeButton);
+        item.append(image, text, actions);
+        item.addEventListener("click", () => {
+          showImagePreview(job.file, job.number, job);
+          jumpToMarkdownForCapture(job);
+        });
+        item.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            showImagePreview(job.file, job.number, job);
+            jumpToMarkdownForCapture(job);
+          }
+        });
+        rerunButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          reprocessCapturedJob(job);
+        });
+        removeButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          removeCapturedJob(job);
+        });
+        queueList.append(item);
+
+        return {
+          setMeta(value) {
+            meta.textContent = value;
+          },
+          remove() {
+            item.remove();
+          }
+        };
+      }
+
+      function showImagePreview(file, number, job = null) {
+        if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl);
+
+        currentPreviewUrl = URL.createObjectURL(file);
+        mainPreviewImage.src = currentPreviewUrl;
+        mainPreviewImage.style.display = "block";
+        previewEmpty.style.display = "none";
+        previewName.textContent = "Slide " + number + " · " + (file.name || "pasted image");
+        activeJob = job || { file, number };
+      }
+
+      function resetImagePreview() {
+        if (currentPreviewUrl) URL.revokeObjectURL(currentPreviewUrl);
+
+        currentPreviewUrl = "";
+        mainPreviewImage.removeAttribute("src");
+        mainPreviewImage.style.display = "none";
+        previewEmpty.style.display = "block";
+        previewName.textContent = "No image selected";
+        activeJob = null;
+      }
+
+      function getImageFiles(dataTransfer) {
+        const files = [];
+
+        if (dataTransfer && dataTransfer.items) {
+          for (const item of dataTransfer.items) {
+            if (item.kind === "file" && item.type.startsWith("image/")) {
+              const file = item.getAsFile();
+              if (file) files.push(file);
+            }
+          }
+        }
+
+        if (!files.length && dataTransfer && dataTransfer.files) {
+          for (const file of dataTransfer.files) {
+            if (file.type.startsWith("image/")) files.push(file);
+          }
+        }
+
+        return files;
+      }
+
+      async function getClipboardImageFiles() {
+        if (!navigator.clipboard || typeof navigator.clipboard.read !== "function") {
+          throw new Error("Clipboard image reading is not available. Copy a slide image, then press Ctrl+V.");
+        }
+
+        const items = await navigator.clipboard.read();
+        const files = [];
+
+        for (const item of items) {
+          const imageType = item.types.find((type) => type.startsWith("image/"));
+
+          if (!imageType) continue;
+
+          const blob = await item.getType(imageType);
+          const extension = imageType.split("/")[1] || "png";
+          const fileName = "auto-parsed-slide-" + getTimestampForFile() + "." + extension.replace("jpeg", "jpg");
+
+          files.push(new File([blob], fileName, {
+            type: imageType,
+            lastModified: Date.now()
+          }));
+        }
+
+        return files;
+      }
+
+      async function autoParseClipboardImage() {
+        if (isProcessing) {
+          setStatus("OCR is already processing", "busy");
+          return;
+        }
+
+        autoParseButton.disabled = true;
+        setStatus("Reading copied slide image", "busy");
+
+        try {
+          const files = await getClipboardImageFiles();
+
+          if (!files.length) {
+            setStatus("No copied slide image found", "error");
+            return;
+          }
+
+          enqueue(files);
+        } catch (error) {
+          const message = error && error.message ? error.message : "Copied slide image could not be read.";
+          setStatus(message, "error");
+        } finally {
+          autoParseButton.disabled = false;
+        }
+      }
+
+      function openPptAutoParsePicker() {
+        if (isProcessing) {
+          setStatus("OCR is already processing", "busy");
+          return;
+        }
+
+        pptFileInput.click();
+      }
+
+      async function convertPptToImageFiles(file) {
+        if (!(await checkLocalParserService())) {
+          throw new Error("Local parser service is offline.");
+        }
+
+        const formData = new FormData();
+
+        formData.append("ppt", file, file.name || "slides.pptx");
+
+        const response = await fetch(localParserBaseUrl + "/api/ppt/convert", {
+          method: "POST",
+          body: formData
+        });
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(result.error || "PPT slide export failed.");
+        }
+
+        const slides = Array.isArray(result.slides) ? result.slides : [];
+        if (!slides.length) {
+          throw new Error("No slide images were returned from the local parser service.");
+        }
+
+        const sourceName = (file.name || "slides").replace(/\.[^.]+$/, "");
+        const imageFiles = [];
+
+        for (const slide of slides) {
+          const dataUrl = String(slide.dataUrl || "");
+          const blob = await fetch(dataUrl).then((item) => item.blob());
+          const slideNumber = Number(slide.number) || imageFiles.length + 1;
+          const slideName = sourceName + "-slide-" + String(slideNumber).padStart(2, "0") + ".png";
+
+          imageFiles.push(new File([blob], slideName, {
+            type: slide.type || "image/png",
+            lastModified: Date.now()
+          }));
+        }
+
+        return imageFiles;
+      }
+
+      async function autoParsePptFile(file) {
+        if (!file) return;
+
+        autoParseButton.disabled = true;
+        setStatus("Exporting PPT slides", "busy");
+        setProgress(0);
+
+        try {
+          const files = await convertPptToImageFiles(file);
+
+          setStatus(files.length.toLocaleString("ko-KR") + " slide image(s) exported", "busy");
+          enqueue(files);
+        } catch (error) {
+          const message = error && error.message ? error.message : "PPT automatic parsing failed.";
+          setStatus(message, "error");
+          setProgress(0);
+        } finally {
+          autoParseButton.disabled = false;
+          pptFileInput.value = "";
+        }
+      }
+
+      function reprocessCapturedJob(job) {
+        if (!job) return;
+
+        showImagePreview(job.file, job.number, job);
+        job.ui.setMeta("Queued · Markdown resend");
+        queue.push({
+          job,
+          options: { replaceExisting: true }
+        });
+        setStatus("Slide " + job.number + " Markdown resend queued", "busy");
+        processQueue();
+      }
+
+      function removeCapturedJob(job) {
+        if (!job) return;
+
+        const capturedIndex = capturedItems.indexOf(job);
+        if (capturedIndex >= 0) capturedItems.splice(capturedIndex, 1);
+
+        for (let index = queue.length - 1; index >= 0; index--) {
+          if (queue[index].job === job) queue.splice(index, 1);
+        }
+
+        job.ui.remove();
+
+        if (activeJob === job || (activeJob && activeJob.number === job.number)) {
+          const nextJob = capturedItems[capturedItems.length - 1];
+
+          if (nextJob) {
+            showImagePreview(nextJob.file, nextJob.number, nextJob);
+          } else {
+            resetImagePreview();
+          }
+        }
+
+        updateQueueCount();
+        setStatus("Slide " + job.number + " capture removed");
+      }
+
+      function enqueue(files) {
+        for (const file of files) {
+          const number = slideCount++;
+          const job = {
+            file,
+            number,
+            captureId: createCaptureId(number)
+          };
+
+          job.ui = createQueueItem(job);
+          capturedItems.push(job);
+          showImagePreview(file, number, job);
+          queue.push({
+            job,
+            options: { replaceExisting: false }
+          });
+        }
+
+        if (files.length) {
+          updateQueueCount();
+          setStatus(files.length.toLocaleString("ko-KR") + " image(s) captured", "busy");
+          processQueue();
+        }
+      }
+
+      async function processQueue() {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        while (queue.length) {
+          const entry = queue.shift();
+          updateQueueCount();
+          await processJob(entry.job, entry.options || {});
+        }
+
+        isProcessing = false;
+        setTimeout(() => {
+          if (!isProcessing) {
+            setStatus("Waiting for image input");
+            setProgress(0);
+          }
+        }, 800);
+      }
+
+      async function processJob(job, options = {}) {
+        const replaceExisting = Boolean(options.replaceExisting);
+        const ui = job.ui || { setMeta() {} };
+
+        ui.setMeta("OCR processing...");
+        setStatus("Slide " + job.number + " OCR processing", "busy");
+        setProgress(0);
+
+        try {
+          if (!window.Tesseract) {
+            throw new Error("Tesseract.js failed to load. Check local ./vendor/tesseract/ or CDN access.");
+          }
+
+          setStatus("Slide " + job.number + " multi-OCR A/B/C processing", "busy");
+          const textSet = await runMultiOcrPipeline(job.file, (progress, statusMessage) => {
+            setProgress(progress);
+            if (statusMessage) setStatus(statusMessage, "busy");
+          });
+
+          const glossaryTextForScoring = await loadQualityTeamGlossary();
+          const ocrSelection = getBestOcrSelection(textSet, glossaryTextForScoring);
+          const rawText = formatScoredOcrSelection(ocrSelection);
+          job.ocrSelection = ocrSelection;
+          lastRawOcrText = rawText;
+          lastRawOcrSlideNumber = job.number;
+          let markdownText = rawText;
+
+          ui.setMeta("Completed - " + ocrSelection.best.key + " selected for Vision package");
+          setStatus("Slide " + job.number + " done - HTML package ready for Codex", "ready");
+          flashCodexButton("Package ready", "action");
+
+          if (replaceExisting) {
+            upsertSlideMarkdown(markdownText, job.number, { captureId: job.captureId });
+          } else {
+            appendMarkdown(markdownText, job.number, { captureId: job.captureId });
+          }
+
+          setStatus("Slide " + job.number + " processing complete", "ready");
+          setProgress(1);
+        } catch (error) {
+          const message = error && error.message ? error.message : "Unknown OCR error";
+          console.error(error);
+          if (replaceExisting) {
+            upsertSlideMarkdown("[OCR Error] " + message, job.number, { captureId: job.captureId });
+          } else {
+            appendMarkdown("[OCR Error] " + message, job.number, { captureId: job.captureId });
+          }
+          ui.setMeta("Failed - " + message);
+          setStatus("OCR failed", "error");
+          setProgress(0);
+        }
+      }
+
+      function clearMarkdown() {
+        if (output.value.trim()) {
+          rememberUndo("Clear");
+        }
+
+        output.value = "";
+        updateStats();
+        setStatus("Markdown cleared");
+      }
+
+      function downloadTextFile(text, filename, mimeType) {
+        const blob = new Blob([text], { type: mimeType + ";charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+
+      async function saveCodexHtmlPackage(html, filename) {
+        if (!(await checkLocalParserService())) {
+          throw new Error("Launch OCR system first: start_ocr_app.cmd");
+        }
+
+        try {
+          const response = await fetch(localParserBaseUrl + "/api/codex/save", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ filename, html })
+          });
+          const result = await response.json().catch(() => ({}));
+
+          if (response.ok && result.saved) {
+            return {
+              saved: true,
+              direct: true,
+              label: result.path || (codexTargetSavePath + "\\" + filename)
+            };
+          }
+
+          throw new Error(result.error || ("Local save failed with HTTP " + response.status));
+        } catch (error) {
+          const message = error && error.message ? error.message : "Local helper is unavailable.";
+          throw new Error("Launch OCR system first: start_ocr_app.cmd (" + message + ")");
+        }
+      }
+
+      function getHeaderNameForFile() {
+        const headerName = getDocumentHeaderName() || "OCR_Request";
+
+        return sanitizeFileName(headerName);
+      }
+
+      function sanitizeFileName(value) {
+        return String(value || "OCR_Request")
+          .trim()
+          .replace(/\s+/g, "_")
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+          .replace(/_+/g, "_")
+          .replace(/^_+|_+$/g, "")
+          .slice(0, 80) || "OCR_Request";
+      }
+
+      function getTimestampForFile() {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+        const hh = String(now.getHours()).padStart(2, "0");
+        const mi = String(now.getMinutes()).padStart(2, "0");
+        const ss = String(now.getSeconds()).padStart(2, "0");
+
+        return yy + mm + dd + "_" + hh + mi + ss;
+      }
+
+      function downloadMarkdown() {
+        validateMarkdownAndToggle();
+        if (downloadButton.disabled) {
+          setStatus("Download locked", "error");
+          return;
+        }
+
+        if (!output.value.trim()) {
+          setStatus("No Markdown available to download", "error");
+          return;
+        }
+
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+        downloadTextFile(output.value, "slide-ocr-" + timestamp + ".md", "text/markdown");
+        setStatus("Markdown downloaded");
+      }
+
+      async function buildCodexReviewRequestPackage() {
+        repairKnownTemplateEncoding();
+        const markdownText = output.value.trim();
+        const glossaryText = await loadQualityTeamGlossary();
+        const imagePayloads = await getCapturedImagePayloads();
+
+        if (markdownText) {
+          const prompt = normalizeKnownTemplateEncoding("[Codex Review Request]\n\n"
+            + "This is an OCR parser draft, not a finished RAG Markdown file.\n"
+            + "Open Codex, paste or open the package below, refine the Markdown with the included captured slide images, then paste the refined Markdown back into the OCR parser.\n\n"
+            + attachQualityTeamGlossary(buildCodexMarkdownRefinePrompt(markdownText), glossaryText));
+
+          return {
+            text: appendCapturedImagesToPrompt(prompt, imagePayloads),
+            html: buildCapturedImagesHtml(prompt, imagePayloads)
+          };
+        }
+
+        if (lastRawOcrText) {
+          const prompt = normalizeKnownTemplateEncoding("[Codex Review Request]\n\n"
+            + "This is raw OCR text because Markdown output is empty.\n"
+            + "Open Codex, paste or open the package below, refine it into RAG Markdown with the included captured slide images, then paste the result back into the OCR parser.\n\n"
+            + attachQualityTeamGlossary(buildCodexRefinePrompt(lastRawOcrText, lastRawOcrSlideNumber || "current"), glossaryText));
+
+          return {
+            text: appendCapturedImagesToPrompt(prompt, imagePayloads),
+            html: buildCapturedImagesHtml(prompt, imagePayloads)
+          };
+        }
+
+        return { text: "", html: "" };
+      }
+
+      async function downloadCodexReviewRequest() {
+        const requestPackage = await buildCodexReviewRequestPackage();
+
+        if (!requestPackage.text || !requestPackage.html) {
+          setStatus(codexEmptyMessage, "error");
+          flashCodexButton("No data", "error");
+          return;
+        }
+
+        const imagePayloads = await getCapturedImagePayloads();
+        const manifest = getCapturePackageManifest(imagePayloads);
+        const fileName = getHeaderNameForFile() + "_codex_vision_package_" + getTimestampForFile() + ".html";
+
+        if (!imagePayloads.length) {
+          setStatus("Captured slide image is required for Vision package", "error");
+          flashCodexButton("No image", "error");
+          return;
+        }
+
+        if (manifest.missingCaptureIds.length || manifest.embeddedCount !== manifest.expectedCount) {
+          setStatus("Vision package image manifest mismatch", "error");
+          flashCodexButton("Image mismatch", "error");
+          return;
+        }
+
+        flashCodexButton("Saving...", "action");
+        let saveResult;
+
+        try {
+          saveResult = await saveCodexHtmlPackage(requestPackage.html, fileName);
+        } catch (error) {
+          const message = error && error.message ? error.message : "HTML package save failed.";
+          setStatus(message, "error");
+          flashCodexButton("Save failed", "error");
+          return;
+        }
+
+        if (!saveResult.saved) {
+          setStatus("Save canceled", "error");
+          flashCodexButton("Canceled", "error");
+          return;
+        }
+
+        copySavePathButton.title = codexTargetSavePath;
+        setStatus(fileName + " saved to downloads (" + manifest.embeddedCount + "/" + manifest.expectedCount + " images)", "ready");
+        flashCodexButton("HTML saved", "success");
+      }
+
+      window.addEventListener("paste", (event) => {
+        const files = getImageFiles(event.clipboardData);
+        if (files.length) {
+          event.preventDefault();
+          enqueue(files);
+        }
+      });
+
+      window.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        dropZone.classList.add("dragover");
+      });
+
+      window.addEventListener("dragleave", (event) => {
+        if (!dropZone.contains(event.relatedTarget)) dropZone.classList.remove("dragover");
+      });
+
+      window.addEventListener("drop", (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("dragover");
+        enqueue(getImageFiles(event.dataTransfer));
+      });
+
+      autoParseButton.addEventListener("click", openPptAutoParsePicker);
+
+      pptFileInput.addEventListener("change", () => {
+        const file = pptFileInput.files && pptFileInput.files[0] ? pptFileInput.files[0] : null;
+        autoParsePptFile(file);
+      });
+
+      fileInput.addEventListener("change", () => {
+        enqueue(Array.from(fileInput.files || []).filter((file) => file.type.startsWith("image/")));
+        fileInput.value = "";
+      });
+
+      output.addEventListener("input", handleOutputInput);
+      applyHeaderDepartmentButton.addEventListener("click", applyHeaderDepartmentPatch);
+      applyHeaderReportTypeButton.addEventListener("click", applyHeaderReportTypePatch);
+      applyHeaderFailureModeButton.addEventListener("click", applyHeaderFailureModePatch);
+      applyMetaProductButton.addEventListener("click", () => applyMetadataPatch("Product", metaProductInput));
+      applyMetaProjectButton.addEventListener("click", () => applyMetadataPatch("Project", metaProjectInput));
+      applyMetaTestTypeButton.addEventListener("click", () => applyMetadataPatch("Test Type", metaTestTypeInput));
+      applyMetaOccurrenceDateButton.addEventListener("click", () => applyMetadataPatch("Occurrence Date", metaOccurrenceDateInput));
+      applyMetaAuthorButton.addEventListener("click", () => applyMetadataPatch("Author", metaAuthorInput));
+      applySourcePatchButton.addEventListener("click", applySourcePatch);
+      insertTableButton.addEventListener("click", insertTableTemplate);
+      undoButton.addEventListener("click", undoLastChange);
+      copySavePathButton.addEventListener("click", copyCodexSavePath);
+      sendCodexPackageButton.addEventListener("click", downloadCodexReviewRequest);
+      clearButton.addEventListener("click", clearMarkdown);
+      downloadButton.addEventListener("click", downloadMarkdown);
+
+      repairInputs.push(
+        { input: headerDepartmentInput, label: "Department" },
+        { input: headerReportTypeInput, label: "Report Type" },
+        { input: headerFailureModeInput, label: "Failure Mode" },
+        { input: sourcePatchInput, label: "PPT EDM url" },
+        { input: metaProductInput, label: "Product" },
+        { input: metaProjectInput, label: "Project" },
+        { input: metaTestTypeInput, label: "Test Type" },
+        { input: metaOccurrenceDateInput, label: "Occurrence Date" },
+        { input: metaAuthorInput, label: "Author" }
+      );
+      initializeRepairInputs();
+      updateStats();
+      updateQueueCount();
+      updateGlossaryStatus();
+      checkLocalParserService({ quiet: true });
+      window.setInterval(() => checkLocalParserService({ quiet: true }), 5000);
+      loadQualityTeamGlossary();
+      setStatus("Waiting for image input");
+    }).catch((error) => {
+      console.error(error);
+      const statusDot = document.getElementById("statusDot");
+      const statusText = document.getElementById("statusText");
+      statusDot.className = "dot error";
+      statusText.textContent = error.message;
+    });
+  </script>
+</body>
+</html>

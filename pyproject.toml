@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ocr-parser"
+version = "0.1.0"
+description = "A small OCR text parsing toolkit."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+ocr = [
+  "pillow>=10.0",
+  "pytesseract>=0.3.10",
+]
+dev = [
+  "pytest>=8.0",
+]
+
+[project.scripts]
+ocr-parse = "ocr_parser.cli:main"
+ocr-local-server = "ocr_parser.local_server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

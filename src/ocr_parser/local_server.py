@@ -17,6 +17,8 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 INDEX_HTML = WORKSPACE_ROOT / "index.html"
 EXPORT_SCRIPT = WORKSPACE_ROOT / "tools" / "export_ppt_slides.ps1"
 DOWNLOADS_DIR = WORKSPACE_ROOT / "downloads"
+DEFAULT_HTML_DIR = DOWNLOADS_DIR / "HTML"
+DEFAULT_MD_DIR = DOWNLOADS_DIR / "MD"
 ALLOWED_EXTENSIONS = {".ppt", ".pptx", ".pptm"}
 
 
@@ -31,6 +33,17 @@ class LocalParserHandler(BaseHTTPRequestHandler):
 
         if path == "/health":
             self._send_json({"ok": True, "service": "ocr-local-parser"})
+            return
+
+        if path == "/api/settings":
+            self._send_json(
+                {
+                    "ok": True,
+                    "workspace": str(WORKSPACE_ROOT),
+                    "htmlDir": str(DEFAULT_HTML_DIR),
+                    "mdDir": str(DEFAULT_MD_DIR),
+                }
+            )
             return
 
         if path in {"/", "/index.html"}:
@@ -56,9 +69,55 @@ class LocalParserHandler(BaseHTTPRequestHandler):
             self._send_json(result)
             return
 
+        if path == "/api/markdown/save":
+            try:
+                payload = self._read_json_body()
+                result = save_markdown_file(payload)
+            except ValueError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                return
+            except RuntimeError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                return
+
+            self._send_json(result)
+            return
+
         if path == "/api/downloads/open":
             try:
-                result = open_downloads_directory()
+                payload = self._read_optional_json_body()
+                result = open_directory(payload.get("directory") or str(DEFAULT_HTML_DIR))
+            except ValueError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                return
+            except RuntimeError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                return
+
+            self._send_json(result)
+            return
+
+        if path == "/api/folder/open":
+            try:
+                payload = self._read_json_body()
+                result = open_directory(str(payload.get("directory") or ""))
+            except ValueError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                return
+            except RuntimeError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                return
+
+            self._send_json(result)
+            return
+
+        if path == "/api/folder/select":
+            try:
+                payload = self._read_json_body()
+                result = select_directory(payload)
+            except ValueError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                return
             except RuntimeError as error:
                 self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
                 return
@@ -129,6 +188,19 @@ class LocalParserHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         if length <= 0:
             raise ValueError("Request body is empty.")
+        if length > 300 * 1024 * 1024:
+            raise ValueError("Request body is too large. Limit is 300 MB.")
+
+        try:
+            return json.loads(self.rfile.read(length).decode("utf-8"))
+        except json.JSONDecodeError as error:
+            raise ValueError("Request body must be JSON.") from error
+
+    def _read_optional_json_body(self) -> dict:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0:
+            return {}
+
         if length > 300 * 1024 * 1024:
             raise ValueError("Request body is too large. Limit is 300 MB.")
 
@@ -238,19 +310,15 @@ def natural_slide_sort_key(name: str) -> tuple[int, str]:
 def save_codex_html_package(payload: dict) -> dict[str, str | bool]:
     filename = sanitize_download_filename(str(payload.get("filename") or "codex_vision_package.html"))
     html = str(payload.get("html") or "")
+    target_dir = resolve_user_directory(payload.get("directory"), DEFAULT_HTML_DIR)
 
     if not filename.lower().endswith(".html"):
         filename += ".html"
     if not html.strip():
         raise ValueError("HTML package content is empty.")
 
-    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = (DOWNLOADS_DIR / filename).resolve()
-    downloads_root = DOWNLOADS_DIR.resolve()
-
-    if downloads_root not in output_path.parents:
-        raise RuntimeError("Refusing to save outside the downloads directory.")
-
+    target_dir.mkdir(parents=True, exist_ok=True)
+    output_path = (target_dir / filename).resolve()
     output_path.write_text(html, encoding="utf-8")
 
     return {
@@ -260,19 +328,103 @@ def save_codex_html_package(payload: dict) -> dict[str, str | bool]:
     }
 
 
-def open_downloads_directory() -> dict[str, str | bool]:
-    DOWNLOADS_DIR.mkdir(parents=True, exist_ok=True)
-    downloads_root = DOWNLOADS_DIR.resolve()
+def save_markdown_file(payload: dict) -> dict[str, str | bool]:
+    filename = sanitize_download_filename(str(payload.get("filename") or "rag_markdown.md"))
+    markdown = str(payload.get("markdown") or "")
+    target_dir = resolve_user_directory(payload.get("directory"), DEFAULT_MD_DIR)
+
+    if not filename.lower().endswith(".md"):
+        filename += ".md"
+    if not markdown.strip():
+        raise ValueError("Markdown content is empty.")
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+    output_path = (target_dir / filename).resolve()
+    output_path.write_text(markdown, encoding="utf-8")
+
+    return {
+        "saved": True,
+        "path": str(output_path),
+        "filename": filename,
+    }
+
+
+def resolve_user_directory(value: object, default: Path) -> Path:
+    raw_value = str(value or "").strip()
+    if not raw_value:
+        return default.resolve()
+
+    path = Path(raw_value).expanduser()
+    if not path.is_absolute():
+        path = WORKSPACE_ROOT / path
+
+    return path.resolve()
+
+
+def open_directory(directory: object) -> dict[str, str | bool]:
+    target_dir = resolve_user_directory(directory, DEFAULT_HTML_DIR)
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        subprocess.Popen(["explorer", str(downloads_root)])
+        subprocess.Popen(["explorer", str(target_dir)])
     except OSError as error:
         raise RuntimeError(f"Could not open downloads directory: {error}") from error
 
     return {
         "opened": True,
-        "path": str(downloads_root),
+        "path": str(target_dir),
     }
+
+
+def select_directory(payload: dict) -> dict[str, str | bool]:
+    title = str(payload.get("title") or "Select save folder")
+    current = resolve_user_directory(payload.get("current"), DEFAULT_HTML_DIR)
+    current.mkdir(parents=True, exist_ok=True)
+
+    escaped_title = title.replace("'", "''")
+    escaped_current = str(current).replace("'", "''")
+    command = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$owner = New-Object System.Windows.Forms.Form; "
+        "$owner.StartPosition = 'CenterScreen'; "
+        "$owner.Width = 1; "
+        "$owner.Height = 1; "
+        "$owner.ShowInTaskbar = $false; "
+        "$owner.TopMost = $true; "
+        "$owner.Opacity = 0; "
+        "$owner.Show(); "
+        "$owner.Activate(); "
+        "$dialog = New-Object System.Windows.Forms.FolderBrowserDialog; "
+        "$dialog.Description = '" + escaped_title + "'; "
+        "$dialog.SelectedPath = '" + escaped_current + "'; "
+        "$dialog.ShowNewFolderButton = $true; "
+        "try { "
+        "if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) "
+        "{ [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Output $dialog.SelectedPath } "
+        "} finally { $owner.Close(); $owner.Dispose(); }"
+    )
+
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-STA", "-Command", command],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except OSError as error:
+        raise RuntimeError(f"Could not open folder picker: {error}") from error
+    except subprocess.TimeoutExpired as error:
+        raise RuntimeError("Folder picker timed out.") from error
+
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "Folder picker failed.").strip()
+        raise RuntimeError(detail)
+
+    selected = result.stdout.strip()
+    if not selected:
+        return {"selected": False, "path": ""}
+
+    return {"selected": True, "path": selected}
 
 
 def sanitize_download_filename(value: str) -> str:

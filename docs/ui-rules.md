@@ -1,12 +1,20 @@
 # OCR Parser UI Rules
 
+## Work Protocol
+
+- Before UI or save-flow edits, check this rules file first and identify the exact rule being changed or followed.
+- If the requested behavior is ambiguous, update this rules file before editing code.
+- Do not patch layout by trial-and-error values. Record fixed sizes, labels, and spacing rules here first, then apply them in code.
+- After code edits, verify the changed UI against the matching rules and update this file again only if the user-approved rule changed.
+- Git commit, push, and deployment actions are performed only when the user explicitly asks for Git reflection or deployment.
+
 ## Workspace Control
 
 - Canonical local workspace: `C:\Users\user\Documents\My Works\OCR`.
-- Runtime downloads for Codex Vision packages belong under `C:\Users\user\Documents\My Works\OCR\downloads`.
+- Runtime downloads are split by artifact type under the local helper workspace by default: HTML intermediate packages under `downloads\HTML`, final Markdown under `downloads\MD`.
+- Save folder paths are user-PC-local full paths managed by the helper. The browser UI must let users select, review, and override both HTML and MD save folders before saving.
 - Do not keep, recreate, or use `C:\Users\user\Documents\OCR` as a secondary workspace.
 - Use `tools/remove-legacy-ocr-workspace.ps1` to delete the legacy path safely after closing any process that locks it. The script compares file hashes before removal and refuses to delete if the workspaces differ.
-- Git commit, push, and deployment actions are performed only when the user explicitly asks for Git reflection or deployment.
 
 ## Layout Balance
 
@@ -88,7 +96,7 @@
 - Download Markdown must remain locked unless Status is `Confirm`. `Review` is treated as a draft/intermediate state and must not be downloadable as final `.md`.
 - Table quality checking is not required. Remove the Table quality card; table creation is a manual toolbar action only.
 - Manual Markdown tables should use `| Item | Value | Status |`.
-- Manual Slide creation, renaming, and deletion controls are removed. OCR-generated slides with capture-id comments are the only trusted slide blocks because Vision handoff matches captured images by captureId, not by user-edited slide numbers.
+- Manual Slide creation, renaming, and deletion controls are removed. OCR-generated slides with capture-id comments are the only trusted slide blocks because image handoff matches captured images by captureId, not by user-edited slide numbers.
 
 ## Controls
 
@@ -119,37 +127,54 @@
 - Codex card buttons must use the same restrained hover behavior as the rest of the app: no strong blue hover state, only subtle slate lift/background.
 - Helper card buttons, including the compact `?` guide button, use the same restrained hover group as Codex card buttons; do not create a separate helper-only hover treatment.
 - Button purpose styles are shared: primary for final/save actions, secondary for neutral utility actions, danger for destructive removal actions, compact for small repeated list actions.
-- In rule repair rows, Apply should keep a consistent 58px width and 28px height across Header, Metadata, and Source rules.
+- In rule repair rows, Apply should keep a consistent 58px width, 28px height, and 11px text size across Header, Metadata, and Source rules.
 - Markdown quality inspector repair buttons should be lower than main toolbar buttons, using a compact 28px height.
 - Markdown quality inspector inputs should use 11px text, keep the existing text color, and use restrained placeholder styling so fields blend into the card rather than dominating it.
 - Disabled buttons must look inactive. They should not change border, color, background, shadow, or transform on hover or active states.
+- Visible UI language is controlled by role, not by guesswork:
+  - Preserve existing Korean section titles and explanatory text unless the user asks to change them, e.g. `Codex 보정`, `MD 품질 점검`, helper guide text.
+  - Prefer English for new compact action buttons and status feedback where encoding has broken before, e.g. `Folders`, `Open HTML Folder`, `Codex Export`, `Apply`, `Select`.
+  - Do not convert existing Korean UI text to English just because a nearby button is English.
 - Codex correction handoff is always HTML-package based. Do not split the UI by Codex access.
-- The Codex card keeps a fixed checked checkbox as a visual signal and one action button labeled `Codex 보정 보내기`.
-- The single Codex action saves one HTML Vision Package containing Markdown, manifest, glossary context, and captured images.
-- The Codex card should show a small `Save path` button before the send button, not a long inline path label.
-- The `Save path` button stays disabled until a Codex Vision Package is successfully saved through the local parser service. After success, it asks the local parser service to open `C:\Users\user\Documents\My Works\OCR\downloads` directly in Explorer.
-- Clearing Markdown resets `Save path` to disabled so users do not mistake the path button for a new successful save.
-- Codex Vision Package save is considered successful only when the local parser service at `http://127.0.0.1:8765` writes the HTML file directly to `C:\Users\user\Documents\My Works\OCR\downloads`.
+- The Codex card keeps a fixed checked checkbox as a visual signal, the card title is `Codex 보정`, and the action button is labeled `Codex Export`.
+- The single Codex action saves an internal HTML package containing Markdown, manifest, glossary context, and captured images.
+- The Codex card note is one short line: `OCR 성능 향상을 위해 Codex 보정 진행`.
+- Do not use the word Vision in visible UI labels, notes, buttons, or status text. Internal prompts, package titles, filenames, and method text may still use Vision when it describes image-based Codex processing.
+- The Codex card stays 300px wide and 140px tall. Its rows are title, note, utility button row, and the `Codex Export` button.
+- Keep the utility row at 20px high, the `Codex Export` button at 30px high, and use a single 6px vertical gap between Codex card rows.
+- The Codex card uses top-aligned grid content so leftover vertical space remains below the `Codex Export` button, not between upper controls.
+- The Codex utility row has two buttons only: `Folders` at 72px wide and `Open HTML Folder` at 132px wide. Do not resize these buttons to fix spacing; adjust row layout only if spacing breaks.
+- The Codex card should show an `Open HTML Folder` button before the send button, not a shortened ambiguous label or a long inline path label.
+- The `Open HTML Folder` button opens the configured HTML save folder in Explorer. It is not a path-copy button.
+- The `Open HTML Folder` button stays disabled until a Codex HTML package is successfully saved through the local parser service.
+- The Codex card should include a compact `Folders` option for setting local save folders for HTML intermediate packages and final MD output.
+- Save folder configuration must be picker-first: users choose folders with helper-backed `Select` buttons, then confirm with `Apply`. Full path fields exist for review and advanced correction, not as the primary setup method.
+- If `Select` cannot call the helper folder picker because the running helper is an older version, show a clear restart/update helper status instead of a generic folder picker failure.
+- The helper-backed folder picker must open as a foreground/topmost dialog so users can see it immediately instead of a hidden background window.
+- If an old saved folder value points at the generic `downloads` root, migrate it to `downloads\HTML` for HTML packages and `downloads\MD` for Markdown output.
+- Clearing Markdown resets `Open HTML Folder` to disabled so users do not mistake the folder-open button for a new successful save.
+- Codex HTML package save is considered successful only when the local parser service at `http://127.0.0.1:8765` writes the HTML file directly to the configured HTML save folder.
+- Final Markdown save is considered successful only when the local parser service writes the `.md` file directly to the configured MD save folder.
 - Do not report browser download fallback or File System Access picker fallback as a successful Codex package save to the managed downloads folder.
 - If the local parser service is unavailable, show a clear error telling the user to launch the system with `start_ocr_app.cmd`; do not pretend the HTML package was saved.
-- A Codex Vision Package must contain at least one captured slide image. If captured images are missing or markdown capture ids cannot be matched to embedded images, block package saving and show an error instead of creating a text-only package.
+- A Codex HTML package must contain at least one captured slide image. If captured images are missing or markdown capture ids cannot be matched to embedded images, block package saving and show an error instead of creating a text-only package.
 - OCR completion prepares the accumulated Markdown for that HTML Codex handoff.
 - Do not auto-copy after async OCR; browser clipboard permission can reject non-click writes.
 - The HTML package prompt should use the full accumulated Markdown refinement prompt first, and fall back to the latest raw OCR prompt only when no Markdown exists.
 - The HTML package prompt must keep explicit RAG refinement rules even when images are available: preserve source evidence, avoid guessing, convert visible tables/flows, enforce glossary terms, verify image manifest, and output Markdown only.
-- Plain text fallback and clipboard copy are not the primary flow. The saved HTML Vision Package is the authoritative handoff because some receiving chat surfaces preserve only one pasted image.
+- Plain text fallback and clipboard copy are not the primary flow. The saved Codex HTML package is the authoritative handoff because some receiving chat surfaces preserve only one pasted image.
 - The prompt should recommend a near-0.0 temperature when that setting is available.
 - Codex cleanup prompts must preserve the original language mix. Do not force Korean, English, Chinese characters, abbreviations, product names, model names, test names, proper nouns, or technical terms into one language.
 - Codex cleanup prompts should correct only unambiguous OCR errors and preserve uncertain text rather than guessing or translating.
 - Codex cleanup prompts must instruct Codex to change document metadata Status from `Review` to `Confirm` in the refined output.
 - OCR should run a local multi-pipeline A/B/C pass when possible: Engine A grayscale, Engine B binary threshold, and Engine C inverted high contrast. The parser may score the three results with glossary keywords only when a `quality_team_glossary_YYMMDD.md` or `quality_team_glossary.md` file is loaded. Do not hardcode example keywords into scoring.
 - When no glossary file is loaded, keyword scoring must be skipped; the parser may still use neutral fallback signals such as OCR noise and text preservation to choose one OCR context.
-- Codex cleanup prompts must be Vision-first: include parser-captured slide images in the saved HTML package, treat those images as the primary source, and use the selected OCR text only as supporting context.
-- For multiple captured slides, the app copies one combined Vision package containing the Markdown draft plus all captured images ordered by captureId-backed slide order.
+- Codex cleanup prompts must be image-first: include parser-captured slide images in the saved HTML package, treat those images as the primary source, and use the selected OCR text only as supporting context.
+- For multiple captured slides, the app creates one combined Codex HTML package containing the Markdown draft plus all captured images ordered by captureId-backed slide order.
 - If a chat surface cannot read pasted rich images or the exported HTML package, the prompt should tell Codex to report image ingestion failure rather than silently relying on OCR text only.
-- Every Vision package must include an explicit image manifest with expected image count and expected Slide list. Codex instructions must require verifying this manifest before refinement; if any expected image is missing or unreadable, the only valid output is `IMAGE_INGESTION_FAILED` plus missing Slide number(s).
-- Slide number is not a stable image identity. Every captured image must receive a unique `captureId`, and OCR-generated Markdown slide blocks must embed that id as `<!-- capture-id: ... -->`. Vision package image matching must use captureId first, with Slide number only as a display/order hint.
-- The draft Method should describe the scoring and Vision handoff path, e.g. `Client-side Tesseract OCR scoring (kor+eng, A/B/C) + Codex Vision review`.
+- Every Codex HTML package must include an explicit image manifest with expected image count and expected Slide list. Codex instructions must require verifying this manifest before refinement; if any expected image is missing or unreadable, the only valid output is `IMAGE_INGESTION_FAILED` plus missing Slide number(s).
+- Slide number is not a stable image identity. Every captured image must receive a unique `captureId`, and OCR-generated Markdown slide blocks must embed that id as `<!-- capture-id: ... -->`. Package image matching must use captureId first, with Slide number only as a display/order hint.
+- The draft Method should describe the scoring and image handoff path, e.g. `Client-side Tesseract OCR scoring (kor+eng, A/B/C) + Codex image review`.
 - Do not add local captured-image trace comments or `Source(PPT url)` lines to new slide Markdown. Source is global metadata only because per-slide source duplication is noisy and can become inconsistent.
 - If `quality_team_glossary.md` exists beside `index.html`, Codex prompts must include it as an authoritative Quality Team Glossary section. Matching From/synonym/slang/OCR-typo terms should be force-replaced with the specified To term and exact capitalization.
 - Versioned glossary files such as `quality_team_glossary_260628.md` are preferred. The app should try recent dated glossary files first, then fall back to `quality_team_glossary.md`.
@@ -157,7 +182,7 @@
 - The glossary line belongs to the bottom row of the Status card and must not move when status/error text changes. Reserve a fixed message area above it and clamp long status messages.
 - Status/error text inside the fixed message area should be top-aligned, not vertically centered.
 - If `quality_team_glossary.md` is missing or blocked by the browser, continue with the normal Codex prompt without showing a blocking error.
-- All users use the same handoff path: generate a `.html` Codex Vision package containing the refinement prompt, current draft, and captured images, not a `.md` file, so draft requests are not confused with completed RAG Markdown.
+- All users use the same handoff path: generate a `.html` Codex package containing the refinement prompt, current draft, and captured images, not a `.md` file, so draft requests are not confused with completed RAG Markdown.
 - HTML handoff filenames should use the document header name from the first Markdown line's bracket text, e.g. `# [개발품질그룹]` -> `개발품질그룹_codex_vision_package_YYMMDD_HHMMSS.html`. Replace whitespace with underscores.
 - Empty Codex handoff actions should use the same status message: `OCR or Markdown is required.`
 - Status and error messages shown in the status card must be English only. Do not mix Korean in runtime error/status messages.

@@ -98,14 +98,16 @@
 
     .codex-card {
       display: grid;
-      grid-template-rows: auto auto auto auto;
+      grid-template-rows: auto auto 20px 30px;
       width: 300px;
       height: 140px;
-      gap: 6px;
+      row-gap: 6px;
       padding: 12px 14px 12px;
+      align-content: start;
       border: 1px solid rgba(203, 213, 225, 0.25);
       border-radius: var(--radius);
       background: rgba(15, 23, 42, 0.45);
+      box-sizing: border-box;
     }
 
     .codex-title {
@@ -130,10 +132,35 @@
       color: #cbd5e1;
       font-size: 11px;
       line-height: 1.4;
+      min-height: 16px;
     }
 
     .codex-path-button {
       align-self: start;
+      overflow: hidden;
+      width: 132px;
+      height: 20px;
+      min-height: 20px;
+      padding: 0 9px;
+      border-color: rgba(203, 213, 225, 0.28);
+      border-radius: 5px;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .codex-path-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 20px;
+    }
+
+    .codex-folder-button {
       overflow: hidden;
       width: 72px;
       height: 20px;
@@ -150,7 +177,8 @@
       white-space: nowrap;
     }
 
-    .codex-path-button:not(:disabled):hover {
+    .codex-path-button:not(:disabled):hover,
+    .codex-folder-button:not(:disabled):hover {
       border-color: rgba(148, 163, 184, 0.8);
       color: #f8fafc;
       background: rgba(148, 163, 184, 0.18);
@@ -169,8 +197,13 @@
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16);
     }
 
+    .codex-card #sendCodexPackageButton {
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+
     .codex-card .codex-path-button {
-      width: 72px;
+      width: 132px;
       height: 20px;
       min-height: 20px;
       padding: 0 9px;
@@ -401,6 +434,73 @@
     .helper-guide-body code {
       color: #0f172a;
       font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .save-folder-form {
+      display: grid;
+      gap: 10px;
+      padding: 12px 14px 14px;
+    }
+
+    .save-folder-note {
+      margin: 0;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .save-folder-field {
+      display: grid;
+      gap: 5px;
+    }
+
+    .save-folder-field label {
+      color: #0f172a;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .save-folder-field input {
+      width: 100%;
+      min-height: 30px;
+      padding: 0 9px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      color: #0f172a;
+      background: #ffffff;
+      font: 11px var(--mono);
+    }
+
+    .save-folder-input-row {
+      display: grid;
+      grid-template-columns: 1fr 72px;
+      gap: 7px;
+      align-items: center;
+    }
+
+    .save-folder-input-row button {
+      min-height: 30px;
+      padding: 0 9px;
+      font-size: 12px;
+    }
+
+    .save-folder-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .save-folder-actions button {
+      min-height: 30px;
+      font-size: 11px;
+    }
+
+    .codex-card .codex-folder-button {
+      width: 72px;
+      height: 20px;
+      min-height: 20px;
+      padding: 0 9px;
       font-size: 11px;
     }
 
@@ -1158,7 +1258,7 @@
       width: 58px;
       min-height: 28px;
       padding: 0;
-      font-size: 12px;
+      font-size: 11px;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
     }
 
@@ -1370,14 +1470,17 @@
       </div>
 
       <div class="top-actions">
-        <section class="codex-card" aria-label="Codex correction handoff">
+        <section class="codex-card" aria-label="Codex export">
           <label class="codex-title">
-            <input type="checkbox" checked tabindex="-1" aria-label="Codex correction handoff enabled">
+            <input type="checkbox" checked tabindex="-1" aria-label="Codex export enabled">
             <span>Codex 보정</span>
           </label>
-          <div class="codex-note">Markdown, manifest, captured images를 HTML Vision Package로 저장합니다.</div>
-          <button id="copySavePathButton" class="codex-path-button" type="button" title="Save a Codex package first" disabled>Save path</button>
-          <button id="sendCodexPackageButton" type="button">Codex 보정 보내기</button>
+          <div class="codex-note">OCR 성능 향상을 위해 Codex 보정 진행</div>
+          <div class="codex-path-row">
+            <button id="saveFolderSettingsButton" class="codex-folder-button" type="button" title="Set full save folders">Folders</button>
+            <button id="copySavePathButton" class="codex-path-button" type="button" title="Save an HTML package first" disabled>Open HTML Folder</button>
+          </div>
+          <button id="sendCodexPackageButton" type="button">Codex Export</button>
         </section>
 
         <section class="status-card" aria-live="polite">
@@ -1554,6 +1657,37 @@
     </section>
   </div>
 
+  <div id="saveFolderOverlay" class="helper-guide-overlay" role="dialog" aria-modal="true" aria-labelledby="saveFolderTitle" hidden>
+    <section class="helper-guide-dialog">
+      <div class="helper-guide-head">
+        <h3 id="saveFolderTitle">Save Folders</h3>
+        <button id="saveFolderCloseButton" class="helper-guide-close" type="button" aria-label="Close save folder settings">x</button>
+      </div>
+      <div class="save-folder-form">
+        <p class="save-folder-note">Default folders are prefilled. Use Select to change where HTML packages and final MD files are saved, then press Apply.</p>
+        <div class="save-folder-field">
+          <label for="htmlSavePathInput">HTML Package Folder</label>
+          <div class="save-folder-input-row">
+            <input id="htmlSavePathInput" type="text" spellcheck="false" placeholder="Example: C:\Users\user\Documents\OCR_Helper\downloads\HTML">
+            <button id="selectHtmlSaveFolderButton" type="button" class="secondary" title="Select HTML package save folder">Select</button>
+          </div>
+        </div>
+        <div class="save-folder-field">
+          <label for="mdSavePathInput">Final MD Folder</label>
+          <div class="save-folder-input-row">
+            <input id="mdSavePathInput" type="text" spellcheck="false" placeholder="Example: C:\Users\user\Documents\OCR_Helper\downloads\MD">
+            <button id="selectMdSaveFolderButton" type="button" class="secondary" title="Select final Markdown save folder">Select</button>
+          </div>
+        </div>
+        <p class="save-folder-note">If the picker does not appear, launch or update the helper first. Missing folders are created when saving.</p>
+        <div class="save-folder-actions">
+          <button id="saveFolderDefaultsButton" type="button" class="secondary">Default</button>
+          <button id="saveFolderApplyButton" type="button" class="primary">Apply</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
   <script>
     window.OCR_LOCAL_ASSET_BASE = window.OCR_LOCAL_ASSET_BASE || "./vendor/tesseract/";
     window.OCR_CDN_ASSET_BASE = window.OCR_CDN_ASSET_BASE || "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/";
@@ -1629,6 +1763,15 @@
       const helperGuideButton = document.getElementById("helperGuideButton");
       const helperGuideOverlay = document.getElementById("helperGuideOverlay");
       const helperGuideCloseButton = document.getElementById("helperGuideCloseButton");
+      const saveFolderSettingsButton = document.getElementById("saveFolderSettingsButton");
+      const saveFolderOverlay = document.getElementById("saveFolderOverlay");
+      const saveFolderCloseButton = document.getElementById("saveFolderCloseButton");
+      const saveFolderDefaultsButton = document.getElementById("saveFolderDefaultsButton");
+      const saveFolderApplyButton = document.getElementById("saveFolderApplyButton");
+      const htmlSavePathInput = document.getElementById("htmlSavePathInput");
+      const mdSavePathInput = document.getElementById("mdSavePathInput");
+      const selectHtmlSaveFolderButton = document.getElementById("selectHtmlSaveFolderButton");
+      const selectMdSaveFolderButton = document.getElementById("selectMdSaveFolderButton");
       const progressBar = document.getElementById("progressBar");
       const docStatusPill = document.getElementById("docStatusPill");
       const previewName = document.getElementById("previewName");
@@ -1679,10 +1822,18 @@
       let undoSnapshot = null;
       const repairInputs = [];
       const codexEmptyMessage = "OCR or Markdown is required.";
-      const codexTargetSavePath = "C:\\Users\\user\\Documents\\My Works\\OCR\\downloads";
+      const fallbackHtmlSavePath = "";
+      const fallbackMdSavePath = "";
+      const htmlSavePathStorageKey = "ocrParser.htmlSavePath";
+      const mdSavePathStorageKey = "ocrParser.mdSavePath";
       const localParserBaseUrl = "http://127.0.0.1:8765";
       const localParserLaunchUrl = "ocr-parser://launch";
       let localParserOnline = false;
+      let saveFolderDefaultsLoaded = false;
+      let defaultHtmlSavePath = fallbackHtmlSavePath;
+      let defaultMdSavePath = fallbackMdSavePath;
+      let htmlSavePath = window.localStorage.getItem(htmlSavePathStorageKey) || "";
+      let mdSavePath = window.localStorage.getItem(mdSavePathStorageKey) || "";
       let glossaryLoadAttempted = false;
       let qualityTeamGlossaryText = "";
       let qualityTeamGlossaryFileName = "";
@@ -1918,6 +2069,9 @@
         }
 
         updateStatusMeta();
+        if (localParserOnline && !saveFolderDefaultsLoaded) {
+          loadSaveFolderDefaults();
+        }
         if (!localParserOnline && !quiet) {
           setStatus("Launch OCR system first: start_ocr_app.cmd", "error");
         }
@@ -1953,6 +2107,159 @@
       function closeHelperGuide() {
         helperGuideOverlay.hidden = true;
         helperGuideButton.focus();
+      }
+
+      function getHtmlSavePath() {
+        return (htmlSavePath || defaultHtmlSavePath || fallbackHtmlSavePath).trim();
+      }
+
+      function getMdSavePath() {
+        return (mdSavePath || defaultMdSavePath || fallbackMdSavePath).trim();
+      }
+
+      function normalizePathForCompare(path) {
+        return String(path || "").trim().replace(/[\\/]+$/, "").replace(/\//g, "\\").toLowerCase();
+      }
+
+      function isDownloadsRootPath(path) {
+        return /\\downloads$/i.test(normalizePathForCompare(path));
+      }
+
+      function migrateLegacySaveFolderPaths() {
+        if (isDownloadsRootPath(htmlSavePath)) {
+          htmlSavePath = htmlSavePath.replace(/[\\/]+$/, "") + "\\HTML";
+          window.localStorage.setItem(htmlSavePathStorageKey, htmlSavePath);
+        }
+
+        if (isDownloadsRootPath(mdSavePath)) {
+          mdSavePath = mdSavePath.replace(/[\\/]+$/, "") + "\\MD";
+          window.localStorage.setItem(mdSavePathStorageKey, mdSavePath);
+        }
+      }
+
+      function syncSaveFolderInputs() {
+        migrateLegacySaveFolderPaths();
+        htmlSavePathInput.value = getHtmlSavePath();
+        mdSavePathInput.value = getMdSavePath();
+      }
+
+      function openSaveFolderSettings() {
+        syncSaveFolderInputs();
+        saveFolderOverlay.hidden = false;
+        htmlSavePathInput.focus();
+        htmlSavePathInput.select();
+      }
+
+      function closeSaveFolderSettings() {
+        saveFolderOverlay.hidden = true;
+        saveFolderSettingsButton.focus();
+      }
+
+      function applySaveFolderSettings() {
+        htmlSavePath = htmlSavePathInput.value.trim();
+        mdSavePath = mdSavePathInput.value.trim();
+
+        if (!htmlSavePath || !mdSavePath) {
+          setStatus("HTML and MD save folders are required", "error");
+          return;
+        }
+
+        window.localStorage.setItem(htmlSavePathStorageKey, htmlSavePath);
+        window.localStorage.setItem(mdSavePathStorageKey, mdSavePath);
+        setStatus("Save folders updated", "ready");
+        setSavePathAvailable(false);
+        closeSaveFolderSettings();
+      }
+
+      function resetSaveFolderDefaults() {
+        htmlSavePath = defaultHtmlSavePath || fallbackHtmlSavePath;
+        mdSavePath = defaultMdSavePath || fallbackMdSavePath;
+        syncSaveFolderInputs();
+      }
+
+      async function selectSaveFolder(target) {
+        if (!(await checkLocalParserService())) {
+          setStatus("Launch OCR system first: start_ocr_app.cmd", "error");
+          return;
+        }
+
+        const isHtml = target === "html";
+        const input = isHtml ? htmlSavePathInput : mdSavePathInput;
+        const currentPath = input.value.trim() || (isHtml ? getHtmlSavePath() : getMdSavePath());
+        const title = isHtml ? "Select HTML Package Folder" : "Select Final MD Folder";
+
+        setStatus("Opening folder picker", "busy");
+
+        try {
+          const response = await fetch(localParserBaseUrl + "/api/folder/select", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ title, current: currentPath })
+          });
+          const result = await response.json().catch(() => ({}));
+
+          if (response.status === 404) {
+            throw new Error("Restart or update OCR helper to enable folder selection.");
+          }
+
+          if (!response.ok) {
+            throw new Error(result.error || "Folder picker failed.");
+          }
+
+          if (!result.selected) {
+            setStatus("Folder selection canceled", "ready");
+            return;
+          }
+
+          input.value = result.path || "";
+          setStatus(isHtml ? "HTML save folder selected" : "MD save folder selected", "ready");
+        } catch (error) {
+          setStatus(error.message || "Folder picker failed", "error");
+        }
+      }
+
+      async function loadSaveFolderDefaults() {
+        try {
+          const response = await fetch(localParserBaseUrl + "/api/settings", { cache: "no-store" });
+          const result = await response.json().catch(() => ({}));
+
+          if (response.status === 404) {
+            saveFolderDefaultsLoaded = false;
+            syncSaveFolderInputs();
+            return false;
+          }
+
+          if (response.ok && result.ok) {
+            defaultHtmlSavePath = result.htmlDir || defaultHtmlSavePath;
+            defaultMdSavePath = result.mdDir || defaultMdSavePath;
+            saveFolderDefaultsLoaded = true;
+            migrateLegacySaveFolderPaths();
+            if (!htmlSavePath) htmlSavePath = defaultHtmlSavePath;
+            if (!mdSavePath) mdSavePath = defaultMdSavePath;
+            syncSaveFolderInputs();
+            return true;
+          }
+        } catch (error) {
+          syncSaveFolderInputs();
+        }
+
+        return false;
+      }
+
+      async function ensureSaveFoldersConfigured() {
+        if (!getHtmlSavePath() || !getMdSavePath()) {
+          await loadSaveFolderDefaults();
+        }
+
+        if (getHtmlSavePath() && getMdSavePath()) {
+          return true;
+        }
+
+        setStatus("Set HTML and MD save folders first", "error");
+        openSaveFolderSettings();
+        return false;
       }
 
       function getGlossaryCandidateFiles() {
@@ -2776,7 +3083,7 @@
       }
 
       function flashCodexButton(label, tone) {
-        const original = "Codex 보정 보내기";
+        const original = "Codex Export";
 
         window.clearTimeout(codexButtonTimer);
         sendCodexPackageButton.textContent = label;
@@ -2793,7 +3100,7 @@
       }
 
       function flashSavePathButton(label) {
-        const original = "Save path";
+        const original = "Open HTML Folder";
 
         window.clearTimeout(codexPathButtonTimer);
         copySavePathButton.textContent = label;
@@ -2806,28 +3113,33 @@
       function setSavePathAvailable(isAvailable) {
         copySavePathButton.disabled = !isAvailable;
         copySavePathButton.title = isAvailable
-          ? codexTargetSavePath
-          : "Save a Codex package first";
+          ? getHtmlSavePath()
+          : "Save an HTML package first.";
       }
 
       async function openCodexSavePath() {
         if (copySavePathButton.disabled) return;
+        if (!(await ensureSaveFoldersConfigured())) return;
 
         try {
           const response = await fetch(localParserBaseUrl + "/api/downloads/open", {
-            method: "POST"
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ directory: getHtmlSavePath() })
           });
           const result = await response.json().catch(() => ({}));
 
           if (!response.ok || !result.opened) {
-            throw new Error(result.error || "Could not open downloads folder.");
+            throw new Error(result.error || "Could not open HTML save folder.");
           }
 
-          setStatus("Downloads folder opened", "ready");
+          setStatus("HTML save folder opened", "ready");
           flashSavePathButton("Opened");
         } catch (error) {
-          setStatus("Open failed: " + codexTargetSavePath, "error");
-          flashSavePathButton("Open failed");
+          setStatus("Open failed: " + getHtmlSavePath(), "error");
+          flashSavePathButton("Open Failed");
         }
       }
 
@@ -3483,8 +3795,8 @@
           lastRawOcrSlideNumber = job.number;
           let markdownText = rawText;
 
-          ui.setMeta("Completed - " + ocrSelection.best.key + " selected for Vision package");
-          setStatus("Slide " + job.number + " done - HTML package ready for Codex", "ready");
+          ui.setMeta("Completed - " + ocrSelection.best.key + " selected for HTML package");
+            setStatus("Slide " + job.number + " done - HTML package ready for Codex", "ready");
           flashCodexButton("Package ready", "action");
 
           if (replaceExisting) {
@@ -3538,6 +3850,9 @@
         if (!(await checkLocalParserService())) {
           throw new Error("Launch OCR system first: start_ocr_app.cmd");
         }
+        if (!(await ensureSaveFoldersConfigured())) {
+          throw new Error("Set HTML and MD save folders first");
+        }
 
         try {
           const response = await fetch(localParserBaseUrl + "/api/codex/save", {
@@ -3545,7 +3860,7 @@
             headers: {
               "Content-Type": "application/json"
             },
-            body: JSON.stringify({ filename, html })
+            body: JSON.stringify({ filename, html, directory: getHtmlSavePath() })
           });
           const result = await response.json().catch(() => ({}));
 
@@ -3553,11 +3868,40 @@
             return {
               saved: true,
               direct: true,
-              label: result.path || (codexTargetSavePath + "\\" + filename)
+              label: result.path || (getHtmlSavePath() + "\\" + filename)
             };
           }
 
           throw new Error(result.error || ("Local save failed with HTTP " + response.status));
+        } catch (error) {
+          const message = error && error.message ? error.message : "Local helper is unavailable.";
+          throw new Error("Launch OCR system first: start_ocr_app.cmd (" + message + ")");
+        }
+      }
+
+      async function saveMarkdownFile(markdown, filename) {
+        if (!(await checkLocalParserService())) {
+          throw new Error("Launch OCR system first: start_ocr_app.cmd");
+        }
+        if (!(await ensureSaveFoldersConfigured())) {
+          throw new Error("Set HTML and MD save folders first");
+        }
+
+        try {
+          const response = await fetch(localParserBaseUrl + "/api/markdown/save", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ filename, markdown, directory: getMdSavePath() })
+          });
+          const result = await response.json().catch(() => ({}));
+
+          if (response.ok && result.saved) {
+            return result;
+          }
+
+          throw new Error(result.error || ("Markdown save failed with HTTP " + response.status));
         } catch (error) {
           const message = error && error.message ? error.message : "Local helper is unavailable.";
           throw new Error("Launch OCR system first: start_ocr_app.cmd (" + message + ")");
@@ -3592,7 +3936,7 @@
         return yy + mm + dd + "_" + hh + mi + ss;
       }
 
-      function downloadMarkdown() {
+      async function downloadMarkdown() {
         validateMarkdownAndToggle();
         if (downloadButton.disabled) {
           setStatus("Download locked", "error");
@@ -3604,10 +3948,14 @@
           return;
         }
 
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const filename = getHeaderNameForFile() + "_final_markdown_" + getTimestampForFile() + ".md";
 
-        downloadTextFile(output.value, "slide-ocr-" + timestamp + ".md", "text/markdown");
-        setStatus("Markdown downloaded");
+        try {
+          await saveMarkdownFile(output.value, filename);
+          setStatus(filename + " saved to MD folder", "ready");
+        } catch (error) {
+          setStatus(error.message || "Markdown save failed", "error");
+        }
       }
 
       async function buildCodexReviewRequestPackage() {
@@ -3657,13 +4005,13 @@
         const fileName = getHeaderNameForFile() + "_codex_vision_package_" + getTimestampForFile() + ".html";
 
         if (!imagePayloads.length) {
-          setStatus("Captured slide image is required for Vision package", "error");
+          setStatus("Captured slide image is required for HTML package", "error");
           flashCodexButton("No image", "error");
           return;
         }
 
         if (manifest.missingCaptureIds.length || manifest.embeddedCount !== manifest.expectedCount) {
-          setStatus("Vision package image manifest mismatch", "error");
+          setStatus("HTML package image manifest mismatch", "error");
           flashCodexButton("Image mismatch", "error");
           return;
         }
@@ -3744,8 +4092,19 @@
       helperGuideOverlay.addEventListener("click", (event) => {
         if (event.target === helperGuideOverlay) closeHelperGuide();
       });
+      saveFolderSettingsButton.addEventListener("click", openSaveFolderSettings);
+      saveFolderCloseButton.addEventListener("click", closeSaveFolderSettings);
+      saveFolderDefaultsButton.addEventListener("click", resetSaveFolderDefaults);
+      saveFolderApplyButton.addEventListener("click", applySaveFolderSettings);
+      selectHtmlSaveFolderButton.addEventListener("click", () => selectSaveFolder("html"));
+      selectMdSaveFolderButton.addEventListener("click", () => selectSaveFolder("md"));
+      saveFolderOverlay.addEventListener("click", (event) => {
+        if (event.target === saveFolderOverlay) closeSaveFolderSettings();
+      });
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && !helperGuideOverlay.hidden) closeHelperGuide();
+        if (event.key !== "Escape") return;
+        if (!helperGuideOverlay.hidden) closeHelperGuide();
+        if (!saveFolderOverlay.hidden) closeSaveFolderSettings();
       });
       copySavePathButton.addEventListener("click", openCodexSavePath);
       sendCodexPackageButton.addEventListener("click", downloadCodexReviewRequest);
@@ -3767,6 +4126,8 @@
       updateStats();
       updateQueueCount();
       setSavePathAvailable(false);
+      syncSaveFolderInputs();
+      loadSaveFolderDefaults();
       updateGlossaryStatus();
       checkLocalParserService({ quiet: true });
       window.setInterval(() => checkLocalParserService({ quiet: true }), 5000);
